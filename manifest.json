@@ -1,10 +1,17 @@
 {
   "name": "Jarvis AI",
   "short_name": "Jarvis",
-  "start_url": "/jarvis-ai-3/",
+  "description": "Jarvis Self Learning AI with Voice Commands, Cloud Sync, Multi Chat Tabs",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#000000",
   "theme_color": "#003cff",
+  "lang": "en",
+
+  "categories": ["productivity","utilities","ai"],
+
   "icons": [
     {
       "src": "icon-192.png",
@@ -15,6 +22,14 @@
       "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
+    }
+  ],
+
+  "shortcuts": [
+    {
+      "name": "New Chat",
+      "url": "./",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

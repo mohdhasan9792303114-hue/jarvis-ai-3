@@ -1,50 +1,42 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>JARVIS ULTIMATE GOD BUILD</title>
+<title>JARVIS 15 AUTONOMOUS SELF EVOLVING AI</title>
+
+<link rel="manifest" href="manifest.json">
 
 <style>
 body{background:black;color:white;font-family:Arial;margin:0;}
-header{background:#003cff;padding:12px;text-align:center;}
+header{background:#001cff;padding:12px;text-align:center;}
 
 #sidebar{
-position:fixed;
-left:0;top:0;width:230px;height:100%;
-background:#111;overflow:auto;padding:10px;
-border-right:1px solid #333;
+position:fixed;left:0;top:0;width:230px;height:100%;
+background:#111;overflow:auto;padding:10px;border-right:1px solid #333;
 }
 
 #main{margin-left:230px;}
 #chat{height:55vh;overflow:auto;padding:10px;}
-textarea{width:100%;height:85px;background:#222;color:white;}
-button{padding:10px;margin:2px;background:#007acc;color:white;border:none;}
+textarea{width:100%;height:80px;background:#222;color:white;}
 
+button{padding:10px;margin:2px;background:#007acc;color:white;border:none;}
 .tab{padding:6px;background:#222;margin:4px;cursor:pointer;}
-.historyItem{padding:6px;border-bottom:1px solid #333;cursor:pointer;color:#ccc;}
 
 .settings{
 position:fixed;right:0;top:0;width:260px;height:100%;
 background:#111;padding:10px;display:none;
 }
 </style>
-
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#003cff">
-
 </head>
 
 <body>
 
-<header>🤖 JARVIS ULTIMATE GOD BUILD</header>
+<header>🧠 JARVIS 15 AUTONOMOUS SELF EVOLVING AI</header>
 
 <div id="sidebar">
-<h3>Conversations</h3>
+<h3>Chats</h3>
 <div id="tabs"></div>
 <button onclick="newTab()">➕ New Chat</button>
-
-<h3>History</h3>
-<div id="historyList"></div>
-<button onclick="clearChat()">🗑 Delete Chat</button>
+<button onclick="toggleChat()">🔽 Toggle Chat</button>
 </div>
 
 <div id="main">
@@ -54,175 +46,104 @@ background:#111;padding:10px;display:none;
 <div>
 <button onclick="send()">Send</button>
 <button onclick="voiceInput()">🎤 Voice</button>
-<button onclick="toggleGender()">👤 Gender</button>
-<button onclick="toggleLang()">🌐 Lang</button>
 <button onclick="toggleWake()">🧠 Wake</button>
-<button onclick="backup()">💾 Backup</button>
+<button onclick="toggleAutoAI()">⚡ Auto AI</button>
 <button onclick="openSettings()">⚙ Settings</button>
 </div>
 </div>
 
 <div class="settings" id="settingsPanel">
 <h3>Settings</h3>
-<button onclick="toggleGender()">Switch Voice Gender</button>
-<button onclick="toggleLang()">Switch Language</button>
-<button onclick="toggleCloud()">Cloud Sync</button>
+<button onclick="toggleLang()">Language</button>
 <button onclick="connectLLM()">Connect AI Brain</button>
+<button onclick="connectGmail()">Connect Gmail</button>
 <button onclick="closeSettings()">Close</button>
 </div>
 
 <script>
 
-/* ===== SAFE DATABASE LOAD ===== */
-
-let db;
-
-try{
-db = JSON.parse(localStorage.getItem("jarvis_db")) || {};
-}catch{
-db={};
-}
-
-db.memory ??= {};
-db.vector ??= [];
-db.tabs ??= {default:[]};
-db.activeTab ??= "default";
-db.wake ??= false;
-db.voiceGender ??= "female";
-db.language ??= "en";
-db.cloud ??= false;
-db.llmKey ??= "";
+/* DATABASE */
+let db=JSON.parse(localStorage.getItem("jarvis_db")||`{
+memory:{},
+vector:[],
+tabs:{default:[]},
+activeTab:"default",
+wake:false,
+language:"en",
+llmKey:"",
+gmailConnected:false,
+autoAI:false,
+goals:[]
+}`);
 
 function save(){localStorage.setItem("jarvis_db",JSON.stringify(db));}
 
-/* ===== DOM ===== */
-
+/* DOM */
 let chat=document.getElementById("chat");
 let input=document.getElementById("input");
 let tabs=document.getElementById("tabs");
-let historyList=document.getElementById("historyList");
 let settingsPanel=document.getElementById("settingsPanel");
 
-/* ===== SAFE RENDER ===== */
-
-function renderMessage(role,text){
-
-let div=document.createElement("div");
-div.textContent=(role==="user"?"You":"Jarvis")+": "+text;
-
-chat.appendChild(div);
-chat.scrollTop=chat.scrollHeight;
+/* CHAT TOGGLE */
+function toggleChat(){
+chat.style.display=chat.style.display==="none"?"block":"none";
 }
 
-/* ===== SETTINGS ===== */
-
-function openSettings(){ if(settingsPanel) settingsPanel.style.display="block"; }
-function closeSettings(){ if(settingsPanel) settingsPanel.style.display="none"; }
-
-/* ===== TABS ===== */
-
+/* TABS */
 function newTab(){
-
 let name="chat"+Date.now();
 db.tabs[name]=[];
 db.activeTab=name;
 save();
-
 updateTabs();
 loadTab();
 }
 
 function updateTabs(){
-
 tabs.innerHTML="";
-
-Object.keys(db.tabs).forEach(tab=>{
-
+Object.keys(db.tabs).forEach(t=>{
 let d=document.createElement("div");
 d.className="tab";
-d.innerText=tab;
-
-d.onclick=()=>{
-db.activeTab=tab;
-loadTab();
-};
-
+d.innerText=t;
+d.onclick=()=>{db.activeTab=t;loadTab();}
 tabs.appendChild(d);
-
 });
 }
 
 function loadTab(){
-
-if(!db.tabs[db.activeTab]) db.activeTab="default";
-
 chat.innerHTML="";
-
-db.tabs[db.activeTab].forEach(m=>{
-renderMessage(m.role,m.text);
-});
-
-updateHistorySidebar();
+(db.tabs[db.activeTab]||[]).forEach(m=>renderMessage(m.role,m.text));
 }
 
-/* ===== HISTORY ===== */
-
-function updateHistorySidebar(){
-
-historyList.innerHTML="";
-
-(db.tabs[db.activeTab] || []).slice(-20).forEach(h=>{
-
-let d=document.createElement("div");
-d.className="historyItem";
-d.innerText=h.text;
-
-historyList.appendChild(d);
-
-});
+/* MESSAGE */
+function renderMessage(role,text){
+let div=document.createElement("div");
+div.textContent=(role==="user"?"You":"Jarvis")+": "+text;
+chat.appendChild(div);
+chat.scrollTop=chat.scrollHeight;
 }
-
-/* ===== CHAT ADD ===== */
 
 function add(role,text){
-
 renderMessage(role,text);
-
 db.tabs[db.activeTab].push({role,text});
-updateHistorySidebar();
 save();
-
 if(role==="ai") speak(text);
 }
 
-/* ===== CLEAR CHAT ===== */
-
-function clearChat(){
-
-db.tabs[db.activeTab]=[];
-chat.innerHTML="";
-save();
-}
-
-/* ===== VOICE ===== */
-
+/* VOICE OUTPUT */
 function speak(text){
-
 try{
 let u=new SpeechSynthesisUtterance(text);
 u.lang=db.language==="hi"?"hi-IN":"en-US";
-
 speechSynthesis.cancel();
 speechSynthesis.speak(u);
 }catch{}
 }
 
-document.body.addEventListener("click",()=>{
-try{speechSynthesis.resume();}catch{}
-});
+document.body.onclick=()=>speechSynthesis.resume();
 
+/* VOICE INPUT */
 function voiceInput(){
-
 let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(!SR){alert("Voice unsupported");return;}
 
@@ -237,26 +158,17 @@ send();
 r.start();
 }
 
-/* ===== WAKE ===== */
-
+/* WAKE SYSTEM */
 let wakeRec=null;
 
 function toggleWake(){
-
 db.wake=!db.wake;
 save();
-
-add("ai","Wake "+db.wake);
-
-if(db.wake && !wakeRec) startWake();
-else if(!db.wake && wakeRec){
-wakeRec.stop();
-wakeRec=null;
-}
+if(db.wake) startWake();
+else if(wakeRec) wakeRec.stop();
 }
 
 function startWake(){
-
 let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(!SR) return;
 
@@ -265,72 +177,41 @@ wakeRec.continuous=true;
 
 wakeRec.onresult=e=>{
 let t=e.results[e.results.length-1][0].transcript.toLowerCase();
-
 if(t.includes("jarvis")){
 input.value=t.replace("jarvis","");
 send();
 }
 };
 
-try{wakeRec.start();}catch{}
+wakeRec.start();
 }
 
-/* ===== TRAIN ===== */
-
+/* VECTOR MEMORY */
 function vectorStore(q,a){
-
 db.vector.push({q,a});
-if(db.vector.length>400) db.vector.shift();
-
+if(db.vector.length>300) db.vector.shift();
 save();
 }
 
 function vectorSearch(text){
-
 for(let v of db.vector){
 if(text.includes(v.q)) return v.a;
 }
-
 return null;
 }
 
-/* ===== CLOUD ===== */
-
-function toggleCloud(){
-
-db.cloud=!db.cloud;
+/* AUTO AI */
+function toggleAutoAI(){
+db.autoAI=!db.autoAI;
 save();
-
-if(db.cloud){
-fetch("https://jsonblob.com/api/jsonBlob",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(db)
-}).catch(()=>{});
+add("ai","Auto AI "+db.autoAI);
 }
 
-add("ai","Cloud "+db.cloud);
-}
-
-/* ===== LLM ===== */
-
-async function connectLLM(){
-
-let key=prompt("Enter API Key");
-if(!key) return;
-
-db.llmKey=key;
-save();
-
-add("ai","LLM Connected");
-}
-
+/* CLOUD AI */
 async function askLLM(text){
-
 if(!db.llmKey) return null;
 
 try{
-
 let r=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
 headers:{
@@ -344,29 +225,48 @@ messages:[{role:"user",content:text}]
 });
 
 let j=await r.json();
+return j?.choices?.[0]?.message?.content||null;
 
-return j?.choices?.[0]?.message?.content || null;
-
-}catch{
-return null;
-}
+}catch{return null;}
 }
 
-/* ===== THINK ===== */
+function connectLLM(){
+let key=prompt("Enter API Key");
+if(!key) return;
+db.llmKey=key;
+save();
+add("ai","Cloud Brain Connected");
+}
 
+/* GMAIL */
+function connectGmail(){
+db.gmailConnected=true;
+save();
+add("ai","Gmail Connected");
+}
+
+/* SETTINGS */
+function openSettings(){settingsPanel.style.display="block";}
+function closeSettings(){settingsPanel.style.display="none";}
+
+function toggleLang(){
+db.language=db.language==="en"?"hi":"en";
+save();
+add("ai","Language Switched");
+}
+
+/* THINK */
 async function think(text){
 
 if(text.startsWith("train:")){
-
 let parts=text.replace("train:","").split("|");
-if(parts.length<2) return "Format: train: question | answer";
+if(parts.length<2) return "Format: train: q | a";
 
 let q=parts[0].trim();
 let a=parts[1].trim();
 
 db.memory[q]=a;
 vectorStore(q,a);
-
 return "Training saved";
 }
 
@@ -381,10 +281,8 @@ if(llm) return llm;
 return "🤖 Talk or train me";
 }
 
-/* ===== SEND ===== */
-
+/* SEND */
 async function send(){
-
 let msg=input.value.trim();
 if(!msg) return;
 
@@ -393,50 +291,24 @@ add("ai","Thinking...");
 
 let reply=await think(msg);
 
-if(chat.lastChild) chat.removeChild(chat.lastChild);
-
+chat.removeChild(chat.lastChild);
 add("ai",reply);
 
 input.value="";
 }
 
-/* ===== BACKUP ===== */
-
-function backup(){
-
-let blob=new Blob([JSON.stringify(db,null,2)]);
-let a=document.createElement("a");
-
-a.href=URL.createObjectURL(blob);
-a.download="jarvis_backup.json";
-a.click();
-}
-
-/* ===== TOGGLES ===== */
-
-function toggleGender(){
-db.voiceGender=db.voiceGender==="female"?"male":"female";
-add("ai","Gender switched");
-save();
-}
-
-function toggleLang(){
-db.language=db.language==="en"?"hi":"en";
-add("ai","Language switched");
-save();
-}
-
-/* ===== START ===== */
-
+/* START */
 updateTabs();
 loadTab();
-add("ai","🚀 Jarvis Ultimate Ready");
+add("ai","🚀 Jarvis 15 Autonomous Ready");
 
 </script>
-  <script>
+
+<script>
 if ('serviceWorker' in navigator) {
- navigator.serviceWorker.register('sw.js')
+ navigator.serviceWorker.register('sw.js');
 }
-  </script>
+</script>
+
 </body>
 </html>

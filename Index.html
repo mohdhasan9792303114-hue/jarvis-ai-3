@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>JARVIS EVOLUTION GOD BUILD</title>
+
+<style>
+body{background:black;color:white;font-family:Arial;margin:0;}
+header{background:#003cff;padding:12px;text-align:center;}
+#chat{height:55vh;overflow:auto;padding:10px;}
+textarea{width:100%;height:85px;background:#222;color:white;}
+button{padding:10px;margin:2px;background:#007acc;color:white;border:none;}
+.user{color:#00ff9d;margin:5px;}
+.ai{color:#00e5ff;margin:5px;}
+</style>
+</head>
+
+<body>
+
+<header>🤖 JARVIS EVOLUTION GOD BUILD</header>
+
+<div id="chat"></div>
+<textarea id="input"></textarea>
+
+<div>
+<button onclick="send()">Send</button>
+<button onclick="voiceInput()">🎤 Voice</button>
+<button onclick="toggleGender()">👤 Gender</button>
+<button onclick="toggleLang()">🌐 Lang</button>
+<button onclick="toggleWake()">🧠 Wake</button>
+<button onclick="backup()">💾 Backup</button>
+</div>
+
+<script>
+
+// ================= DATABASE =================
+let db = JSON.parse(localStorage.getItem("jarvis_db") || `{
+memory:{},
+vector:[],
+modules:{},
+plugins:{},
+tasks:[],
+goals:[],
+history:[],
+wake:false,
+voiceGender:"female",
+language:"en",
+emotion:"normal"
+}`);
+
+function save(){localStorage.setItem("jarvis_db",JSON.stringify(db));}
+
+let chat=document.getElementById("chat");
+let input=document.getElementById("input");
+
+
+// ================= HISTORY COMPRESSION =================
+function compressHistory(){
+if(db.history.length>300){
+db.history=db.history.slice(-200);
+}
+}
+
+// ================= CHAT =================
+function add(role,text){
+
+chat.innerHTML+=`<div class="${role=="user"?"user":"ai"}">${role=="user"?"You":"Jarvis"}: ${text}</div>`;
+chat.scrollTop=chat.scrollHeight;
+
+db.history.push({role,text});
+compressHistory();
+save();
+
+if(role=="ai") speak(text);
+}
+
+// ================= LOAD =================
+window.onload=()=>{
+db.history.forEach(h=>{
+chat.innerHTML+=`<div class="${h.role=="user"?"user":"ai"}">${h.role=="user"?"You":"Jarvis"}: ${h.text}</div>`;
+});
+if(db.wake) startWake();
+};
+
+
+// ================= VOICE STABILIZER =================
+function speak(text){
+
+function run(){
+
+let u=new SpeechSynthesisUtterance(text);
+
+u.lang=db.language=="hi"?"hi-IN":"en-US";
+
+let voices=speechSynthesis.getVoices();
+
+if(voices.length){
+if(db.voiceGender=="male")
+u.voice=voices.find(v=>v.name.toLowerCase().includes("male"))||voices[0];
+else
+u.voice=voices.find(v=>v.name.toLowerCase().includes("female"))||voices[1];
+}
+
+if(db.emotion=="happy"){u.pitch=1.4;u.rate=1.1;}
+if(db.emotion=="serious"){u.pitch=0.7;u.rate=0.9;}
+
+speechSynthesis.cancel();
+speechSynthesis.speak(u);
+}
+
+if(!speechSynthesis.getVoices().length)
+speechSynthesis.onvoiceschanged=run;
+else run();
+}
+
+// unlock speech
+document.body.addEventListener("click",()=>speechSynthesis.resume());
+
+
+// ================= VOICE INPUT =================
+function voiceInput(){
+
+let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!SR){alert("Voice unsupported");return;}
+
+let r=new SR();
+r.lang=db.language=="hi"?"hi-IN":"en-US";
+
+r.onresult=e=>{
+input.value=e.results[0][0].transcript;
+send();
+};
+
+r.start();
+}
+
+
+// ================= WAKE LISTENER =================
+function toggleWake(){
+db.wake=!db.wake;
+save();
+add("ai","Wake mode: "+db.wake);
+if(db.wake) startWake();
+}
+
+function startWake(){
+
+let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!SR) return;
+
+let r=new SR();
+r.continuous=true;
+
+r.onresult=e=>{
+let t=e.results[e.results.length-1][0].transcript.toLowerCase();
+if(t.includes("jarvis")){
+input.value=t.replace("jarvis","");
+send();
+}
+};
+
+try{r.start();}catch{}
+}
+
+
+// ================= VECTOR MEMORY (Improved scoring) =================
+function similarity(a,b){
+
+a=a.toLowerCase().split(" ");
+b=b.toLowerCase();
+
+let score=0;
+a.forEach(w=>{
+if(b.includes(w)) score++;
+});
+return score/a.length;
+}
+
+function vectorSearch(text){
+for(let v of db.vector){
+if(similarity(text,v.q)>0.5) return v.a;
+}
+return null;
+}
+
+function vectorStore(q,a){
+db.vector.push({q,a});
+if(db.vector.length>400) db.vector.shift();
+save();
+}
+
+
+// ================= MODULE SAFE ENGINE =================
+async function runModules(text){
+
+for(let m in db.modules){
+
+let mod=db.modules[m];
+if(!mod.enabled) continue;
+
+try{
+let fn=new Function("text","db","add",mod.code);
+let res=await fn(text,db,add);
+if(res) return res;
+}catch{
+mod.enabled=false;
+add("ai","⚠ Module disabled: "+m);
+save();
+}
+}
+
+return null;
+}
+
+
+// ================= MULTI AGENT =================
+function agentRouter(text){
+
+if(text.includes("study"))
+return "📚 Study Agent analyzing";
+
+if(text.includes("code"))
+return "💻 Coding Agent analyzing";
+
+if(text.includes("research"))
+return "🔬 Research Agent analyzing";
+
+return null;
+}
+
+
+// ================= AUTONOMOUS PLANNER =================
+function goalPlanner(text){
+
+if(text.startsWith("goal add")){
+db.goals.push(text.replace("goal add",""));
+save();
+return "Goal saved";
+}
+
+if(text=="goal list") return db.goals.join(",");
+
+return null;
+}
+
+
+// ================= PLUGIN MARKETPLACE SIM =================
+function pluginMarket(text){
+
+if(text=="plugin store")
+return "Available plugins: weather, translator, reminder";
+
+if(text.startsWith("plugin install")){
+let p=text.replace("plugin install","");
+db.plugins[p]=true;
+save();
+return "Plugin installed";
+}
+
+return null;
+}
+
+
+// ================= CONVERSATION =================
+function conversation(text){
+
+if(text.includes("hello")||text.includes("hi"))
+return db.language=="hi"?"Namaste 👋":"Hello 👋";
+
+if(text.includes("kaise ho"))
+return "Main ready hoon 😄";
+
+if(text.includes("bye"))
+return "Goodbye 👋";
+
+return null;
+}
+
+
+// ================= DECISION ENGINE =================
+function decision(text){
+
+if(text.includes("plan"))
+return "🧠 Planning best strategy";
+
+return null;
+}
+
+
+// ================= AI CORE =================
+async function think(text){
+
+let raw=text;
+text=text.toLowerCase();
+
+let c=conversation(text);
+if(c) return c;
+
+if(text.includes("train:")){
+let [q,a]=text.replace("train:","").split("|");
+db.memory[q.trim()]=a.trim();
+vectorStore(q.trim(),a.trim());
+save();
+return "Training saved";
+}
+
+let m=await runModules(text);
+if(m) return m;
+
+let p=pluginMarket(text);
+if(p) return p;
+
+let g=goalPlanner(text);
+if(g) return g;
+
+let a=agentRouter(text);
+if(a) return a;
+
+let d=decision(text);
+if(d) return d;
+
+let v=vectorSearch(text);
+if(v) return v;
+
+if(db.memory[text]) return db.memory[text];
+
+return "🤖 Talk or train me";
+}
+
+
+// ================= SEND =================
+async function send(){
+
+let msg=input.value.trim();
+if(!msg) return;
+
+add("user",msg);
+add("ai","Thinking...");
+
+let reply=await think(msg);
+
+chat.lastChild.remove();
+add("ai",reply);
+
+input.value="";
+}
+
+
+// ================= SETTINGS =================
+function toggleGender(){
+db.voiceGender=db.voiceGender=="female"?"male":"female";
+add("ai","Gender switched");
+save();
+}
+
+function toggleLang(){
+db.language=db.language=="en"?"hi":"en";
+add("ai","Language switched");
+save();
+}
+
+
+// ================= BACKUP =================
+function backup(){
+let blob=new Blob([JSON.stringify(db,null,2)]);
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="jarvis_backup.json";
+a.click();
+}
+
+
+// START
+add("ai","🚀 Jarvis Evolution Ready");
+
+</script>
+</body>
+</html>

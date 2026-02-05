@@ -1,27 +1,21 @@
 {
   "name": "JARVIS 15 Autonomous Self Evolving AI",
-  "short_name": "Jarvis AI",
-  "id": "jarvis.ai.autonomous.app",
-  "description": "Jarvis Autonomous Self Learning AI with Voice Commands, Multi Brain Intelligence, Cloud AI Integration, Gmail Support, Multi Chat Tabs and Smart Memory System",
-  
-  "start_url": "/",
-  "scope": "/",
-  
+  "short_name": "Jarvis",
+  "id": "/jarvis-ai-3/",
+  "description": "Jarvis Self Learning AI with Voice Commands, Cloud Sync, Multi Chat Tabs, Autonomous Learning and Multi Brain System",
+
+  "start_url": "./index.html",
+  "scope": "./",
+
   "display": "standalone",
   "orientation": "portrait",
-  
+
   "background_color": "#000000",
-  "theme_color": "#003CFF",
-  
+  "theme_color": "#003cff",
+
   "lang": "en",
-  
-  "categories": [
-    "productivity",
-    "utilities",
-    "education",
-    "ai",
-    "assistant"
-  ],
+
+  "categories": ["productivity", "utilities", "education", "ai"],
 
   "icons": [
     {
@@ -42,14 +36,24 @@
     {
       "name": "New Chat",
       "short_name": "Chat",
-      "url": "/",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+      "url": "./index.html",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Voice Mode",
       "short_name": "Voice",
-      "url": "/",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+      "url": "./index.html#voice",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

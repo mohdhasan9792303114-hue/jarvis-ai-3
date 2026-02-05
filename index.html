@@ -9,34 +9,22 @@ header{background:#003cff;padding:12px;text-align:center;}
 
 #sidebar{
 position:fixed;
-left:0;
-top:0;
-width:230px;
-height:100%;
-background:#111;
-overflow:auto;
-padding:10px;
+left:0;top:0;width:230px;height:100%;
+background:#111;overflow:auto;padding:10px;
 border-right:1px solid #333;
 }
 
 #main{margin-left:230px;}
-
 #chat{height:55vh;overflow:auto;padding:10px;}
 textarea{width:100%;height:85px;background:#222;color:white;}
 button{padding:10px;margin:2px;background:#007acc;color:white;border:none;}
 
-.historyItem{
-padding:6px;
-border-bottom:1px solid #333;
-cursor:pointer;
-color:#ccc;
-}
+.tab{padding:6px;background:#222;margin:4px;cursor:pointer;}
+.historyItem{padding:6px;border-bottom:1px solid #333;cursor:pointer;color:#ccc;}
 
-.tab{
-padding:6px;
-background:#222;
-margin:4px;
-cursor:pointer;
+.settings{
+position:fixed;right:0;top:0;width:260px;height:100%;
+background:#111;padding:10px;display:none;
 }
 </style>
 </head>
@@ -46,153 +34,188 @@ cursor:pointer;
 <header>🤖 JARVIS ULTIMATE GOD BUILD</header>
 
 <div id="sidebar">
-
 <h3>Conversations</h3>
 <div id="tabs"></div>
-
 <button onclick="newTab()">➕ New Chat</button>
 
 <h3>History</h3>
 <div id="historyList"></div>
-
 <button onclick="clearChat()">🗑 Delete Chat</button>
-
 </div>
 
 <div id="main">
-
 <div id="chat"></div>
 <textarea id="input"></textarea>
 
 <div>
 <button onclick="send()">Send</button>
 <button onclick="voiceInput()">🎤 Voice</button>
+<button onclick="toggleGender()">👤 Gender</button>
+<button onclick="toggleLang()">🌐 Lang</button>
 <button onclick="toggleWake()">🧠 Wake</button>
 <button onclick="backup()">💾 Backup</button>
-<button onclick="connectLLM()">🧠 Connect AI</button>
+<button onclick="openSettings()">⚙ Settings</button>
+</div>
 </div>
 
+<div class="settings" id="settingsPanel">
+<h3>Settings</h3>
+<button onclick="toggleGender()">Switch Voice Gender</button>
+<button onclick="toggleLang()">Switch Language</button>
+<button onclick="toggleCloud()">Cloud Sync</button>
+<button onclick="connectLLM()">Connect AI Brain</button>
+<button onclick="closeSettings()">Close</button>
 </div>
 
 <script>
 
-// ================= SAFE DATABASE =================
+/* ===== SAFE DATABASE LOAD ===== */
 
-let db = JSON.parse(localStorage.getItem("jarvis_db") || `{
-memory:{},
-vector:[],
-tabs:{default:[]},
-activeTab:"default",
-wake:false,
-llmKey:""
-}`);
+let db;
 
-if(!db.tabs) db.tabs={default:[]};
-if(!db.activeTab) db.activeTab="default";
-
-function save(){
-localStorage.setItem("jarvis_db",JSON.stringify(db));
+try{
+db = JSON.parse(localStorage.getItem("jarvis_db")) || {};
+}catch{
+db={};
 }
+
+db.memory ??= {};
+db.vector ??= [];
+db.tabs ??= {default:[]};
+db.activeTab ??= "default";
+db.wake ??= false;
+db.voiceGender ??= "female";
+db.language ??= "en";
+db.cloud ??= false;
+db.llmKey ??= "";
+
+function save(){localStorage.setItem("jarvis_db",JSON.stringify(db));}
+
+/* ===== DOM ===== */
 
 let chat=document.getElementById("chat");
 let input=document.getElementById("input");
+let tabs=document.getElementById("tabs");
+let historyList=document.getElementById("historyList");
+let settingsPanel=document.getElementById("settingsPanel");
 
-// ================= TAB SYSTEM =================
+/* ===== SAFE RENDER ===== */
+
+function renderMessage(role,text){
+
+let div=document.createElement("div");
+div.textContent=(role==="user"?"You":"Jarvis")+": "+text;
+
+chat.appendChild(div);
+chat.scrollTop=chat.scrollHeight;
+}
+
+/* ===== SETTINGS ===== */
+
+function openSettings(){ if(settingsPanel) settingsPanel.style.display="block"; }
+function closeSettings(){ if(settingsPanel) settingsPanel.style.display="none"; }
+
+/* ===== TABS ===== */
 
 function newTab(){
-let name="chat_"+Date.now();
+
+let name="chat"+Date.now();
 db.tabs[name]=[];
 db.activeTab=name;
 save();
+
 updateTabs();
 loadTab();
 }
 
 function updateTabs(){
-let t=document.getElementById("tabs");
-t.innerHTML="";
+
+tabs.innerHTML="";
 
 Object.keys(db.tabs).forEach(tab=>{
+
 let d=document.createElement("div");
 d.className="tab";
 d.innerText=tab;
 
 d.onclick=()=>{
 db.activeTab=tab;
-save();
 loadTab();
 };
 
-t.appendChild(d);
+tabs.appendChild(d);
+
 });
 }
 
 function loadTab(){
+
+if(!db.tabs[db.activeTab]) db.activeTab="default";
+
 chat.innerHTML="";
-if(!db.tabs[db.activeTab]) db.tabs[db.activeTab]=[];
 
 db.tabs[db.activeTab].forEach(m=>{
-chat.innerHTML+=`<div>${m.role=="user"?"You":"Jarvis"}: ${m.text}</div>`;
+renderMessage(m.role,m.text);
 });
 
 updateHistorySidebar();
 }
 
-// ================= HISTORY =================
+/* ===== HISTORY ===== */
 
 function updateHistorySidebar(){
-let list=document.getElementById("historyList");
-list.innerHTML="";
 
-db.tabs[db.activeTab].slice(-20).forEach(h=>{
+historyList.innerHTML="";
+
+(db.tabs[db.activeTab] || []).slice(-20).forEach(h=>{
+
 let d=document.createElement("div");
 d.className="historyItem";
 d.innerText=h.text;
-list.appendChild(d);
+
+historyList.appendChild(d);
+
 });
 }
 
-// ================= CHAT =================
+/* ===== CHAT ADD ===== */
 
 function add(role,text){
 
-chat.innerHTML+=`<div>${role=="user"?"You":"Jarvis"}: ${text}</div>`;
-chat.scrollTop=chat.scrollHeight;
+renderMessage(role,text);
 
 db.tabs[db.activeTab].push({role,text});
 updateHistorySidebar();
 save();
 
-if(role=="ai") speak(text);
+if(role==="ai") speak(text);
 }
 
-// ================= DELETE =================
+/* ===== CLEAR CHAT ===== */
 
 function clearChat(){
+
 db.tabs[db.activeTab]=[];
 chat.innerHTML="";
 save();
 }
 
-// ================= VOICE OUTPUT =================
+/* ===== VOICE ===== */
 
 function speak(text){
 
-function run(){
-
+try{
 let u=new SpeechSynthesisUtterance(text);
-u.lang="en-US";
+u.lang=db.language==="hi"?"hi-IN":"en-US";
 
 speechSynthesis.cancel();
 speechSynthesis.speak(u);
+}catch{}
 }
 
-if(!speechSynthesis.getVoices().length){
-speechSynthesis.onvoiceschanged=run;
-}else run();
-}
-
-// ================= VOICE INPUT =================
+document.body.addEventListener("click",()=>{
+try{speechSynthesis.resume();}catch{}
+});
 
 function voiceInput(){
 
@@ -200,6 +223,7 @@ let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(!SR){alert("Voice unsupported");return;}
 
 let r=new SR();
+r.lang=db.language==="hi"?"hi-IN":"en-US";
 
 r.onresult=e=>{
 input.value=e.results[0][0].transcript;
@@ -209,13 +233,22 @@ send();
 r.start();
 }
 
-// ================= WAKE =================
+/* ===== WAKE ===== */
+
+let wakeRec=null;
 
 function toggleWake(){
+
 db.wake=!db.wake;
 save();
-add("ai","Wake mode: "+db.wake);
-if(db.wake) startWake();
+
+add("ai","Wake "+db.wake);
+
+if(db.wake && !wakeRec) startWake();
+else if(!db.wake && wakeRec){
+wakeRec.stop();
+wakeRec=null;
+}
 }
 
 function startWake(){
@@ -223,42 +256,69 @@ function startWake(){
 let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(!SR) return;
 
-let r=new SR();
-r.continuous=true;
+wakeRec=new SR();
+wakeRec.continuous=true;
 
-r.onresult=e=>{
+wakeRec.onresult=e=>{
 let t=e.results[e.results.length-1][0].transcript.toLowerCase();
+
 if(t.includes("jarvis")){
 input.value=t.replace("jarvis","");
 send();
 }
 };
 
-try{r.start();}catch{}
+try{wakeRec.start();}catch{}
 }
 
-// ================= VECTOR MEMORY =================
+/* ===== TRAIN ===== */
 
 function vectorStore(q,a){
+
 db.vector.push({q,a});
+if(db.vector.length>400) db.vector.shift();
+
 save();
 }
 
 function vectorSearch(text){
+
 for(let v of db.vector){
 if(text.includes(v.q)) return v.a;
 }
+
 return null;
 }
 
-// ================= LLM CONNECT =================
+/* ===== CLOUD ===== */
 
-function connectLLM(){
-let key=prompt("Enter OpenAI Key");
+function toggleCloud(){
+
+db.cloud=!db.cloud;
+save();
+
+if(db.cloud){
+fetch("https://jsonblob.com/api/jsonBlob",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(db)
+}).catch(()=>{});
+}
+
+add("ai","Cloud "+db.cloud);
+}
+
+/* ===== LLM ===== */
+
+async function connectLLM(){
+
+let key=prompt("Enter API Key");
 if(!key) return;
+
 db.llmKey=key;
 save();
-add("ai","AI Connected");
+
+add("ai","LLM Connected");
 }
 
 async function askLLM(text){
@@ -280,22 +340,29 @@ messages:[{role:"user",content:text}]
 });
 
 let j=await r.json();
-return j.choices?.[0]?.message?.content;
+
+return j?.choices?.[0]?.message?.content || null;
 
 }catch{
 return null;
 }
 }
 
-// ================= AI CORE =================
+/* ===== THINK ===== */
 
 async function think(text){
 
 if(text.startsWith("train:")){
-let [q,a]=text.replace("train:","").split("|");
-db.memory[q.trim()]=a.trim();
-vectorStore(q.trim(),a.trim());
-save();
+
+let parts=text.replace("train:","").split("|");
+if(parts.length<2) return "Format: train: question | answer";
+
+let q=parts[0].trim();
+let a=parts[1].trim();
+
+db.memory[q]=a;
+vectorStore(q,a);
+
 return "Training saved";
 }
 
@@ -310,7 +377,7 @@ if(llm) return llm;
 return "🤖 Talk or train me";
 }
 
-// ================= SEND =================
+/* ===== SEND ===== */
 
 async function send(){
 
@@ -322,115 +389,45 @@ add("ai","Thinking...");
 
 let reply=await think(msg);
 
-chat.lastChild.remove();
+if(chat.lastChild) chat.removeChild(chat.lastChild);
+
 add("ai",reply);
 
 input.value="";
 }
 
-// ================= BACKUP =================
+/* ===== BACKUP ===== */
 
 function backup(){
+
 let blob=new Blob([JSON.stringify(db,null,2)]);
 let a=document.createElement("a");
+
 a.href=URL.createObjectURL(blob);
 a.download="jarvis_backup.json";
 a.click();
 }
 
-// ================= START =================
+/* ===== TOGGLES ===== */
+
+function toggleGender(){
+db.voiceGender=db.voiceGender==="female"?"male":"female";
+add("ai","Gender switched");
+save();
+}
+
+function toggleLang(){
+db.language=db.language==="en"?"hi":"en";
+add("ai","Language switched");
+save();
+}
+
+/* ===== START ===== */
 
 updateTabs();
 loadTab();
 add("ai","🚀 Jarvis Ultimate Ready");
 
 </script>
-
 </body>
 </html>
-let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(!SR){alert("Voice unsupported");return;}
-
-let r=new SR();
-r.lang=db.language=="hi"?"hi-IN":"en-US";
-
-r.onresult=e=>{
-input.value=e.results[0][0].transcript;
-send();
-};
-
-r.start();
-}
-
-
-// ================= WAKE LISTENER =================
-function toggleWake(){
-db.wake=!db.wake;
-save();
-add("ai","Wake mode: "+db.wake);
-if(db.wake) startWake();
-}
-
-function startWake(){
-
-let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(!SR) return;
-
-let r=new SR();
-r.continuous=true;
-
-r.onresult=e=>{
-let t=e.results[e.results.length-1][0].transcript.toLowerCase();
-if(t.includes("jarvis")){
-input.value=t.replace("jarvis","");
-send();
-}
-};
-
-try{r.start();}catch{}
-}
-
-
-// ================= VECTOR MEMORY (Improved scoring) =================
-function similarity(a,b){
-
-a=a.toLowerCase().split(" ");
-b=b.toLowerCase();
-
-let score=0;
-a.forEach(w=>{
-if(b.includes(w)) score++;
-});
-return score/a.length;
-}
-
-function vectorSearch(text){
-for(let v of db.vector){
-if(similarity(text,v.q)>0.5) return v.a;
-}
-return null;
-}
-
-function vectorStore(q,a){
-db.vector.push({q,a});
-if(db.vector.length>400) db.vector.shift();
-save();
-}
-
-
-// ================= MODULE SAFE ENGINE =================
-async function runModules(text){
-
-for(let m in db.modules){
-
-let mod=db.modules[m];
-if(!mod.enabled) continue;
-
-try{
-let fn=new Function("text","db","add",mod.code);
-let res=await fn(text,db,add);
-if(res) return res;
-}catch{
-mod.enabled=false;
-add("ai","⚠ Module disabled: "+m);
-

@@ -1,34 +1,54 @@
 {
-  "name": "Jarvis AI",
-  "short_name": "Jarvis",
-  "description": "Jarvis Self Learning AI with Voice Commands, Cloud Sync, Multi Chat Tabs",
-  "start_url": "./",
-  "scope": "./",
+  "name": "JARVIS 15 Autonomous Self Evolving AI",
+  "short_name": "Jarvis AI",
+  "id": "jarvis.ai.autonomous.app",
+  "description": "Jarvis Autonomous Self Learning AI with Voice Commands, Multi Brain Intelligence, Cloud AI Integration, Gmail Support, Multi Chat Tabs and Smart Memory System",
+  
+  "start_url": "/",
+  "scope": "/",
+  
   "display": "standalone",
   "orientation": "portrait",
+  
   "background_color": "#000000",
-  "theme_color": "#003cff",
+  "theme_color": "#003CFF",
+  
   "lang": "en",
-
-  "categories": ["productivity","utilities","ai"],
+  
+  "categories": [
+    "productivity",
+    "utilities",
+    "education",
+    "ai",
+    "assistant"
+  ],
 
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
 
   "shortcuts": [
     {
       "name": "New Chat",
-      "url": "./",
+      "short_name": "Chat",
+      "url": "/",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Voice Mode",
+      "short_name": "Voice",
+      "url": "/",
       "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     }
   ]

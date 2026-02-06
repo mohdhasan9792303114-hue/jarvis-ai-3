@@ -1,88 +1,339 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<title>JARVIS MEGA AI</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="manifest" href="manifest.json" />
+<title>JARVIS MEGA AI CORE</title>
 
-<link rel="stylesheet" href="css/main.css">
-<link rel="stylesheet" href="css/sidebar.css">
+<link rel="manifest" href="manifest.json">
 
+<style>
+
+/* ===== GLOBAL UI ===== */
+
+body{
+background:black;
+color:white;
+font-family:Arial;
+margin:0;
+display:flex;
+}
+
+/* ===== SIDEBAR ===== */
+
+#sidebar{
+width:240px;
+height:100vh;
+background:#111;
+border-right:1px solid #333;
+overflow:auto;
+padding:10px;
+}
+
+.tab{
+background:#222;
+margin:5px;
+padding:8px;
+cursor:pointer;
+}
+
+/* ===== MAIN PANEL ===== */
+
+#main{
+flex:1;
+display:flex;
+flex-direction:column;
+}
+
+header{
+background:#003cff;
+padding:12px;
+text-align:center;
+}
+
+#chat{
+flex:1;
+overflow:auto;
+padding:10px;
+}
+
+textarea{
+width:100%;
+height:80px;
+background:#222;
+color:white;
+border:none;
+}
+
+button{
+padding:10px;
+margin:3px;
+background:#007acc;
+color:white;
+border:none;
+}
+
+.user{color:#00ff9d;}
+.ai{color:#00e5ff;}
+
+</style>
 </head>
 
 <body>
 
-<header class="topBar">
-🧠 JARVIS MEGA AI
-<button onclick="UI.toggleSidebar()">☰</button>
-<button onclick="UI.toggleSettings()">⚙</button>
-</header>
+<!-- ===== SIDEBAR ===== -->
 
-<div id="appContainer">
-
-<!-- SIDEBAR -->
 <div id="sidebar">
-<h3>Conversations</h3>
 
-<div id="chatTabs"></div>
+<h3>Chats</h3>
+<div id="tabs"></div>
 
-<button onclick="UI.newChat()">➕ New Chat</button>
-</div>
-
-<!-- MAIN CHAT -->
-<div id="mainPanel">
-
-<div id="chatWindow"></div>
-
-<div id="chatBar">
-
-<textarea id="chatInput"></textarea>
-
-<button onclick="Jarvis.send()">Send</button>
-<button onclick="Voice.startInput()">🎤</button>
+<button onclick="newChat()">➕ New Chat</button>
 
 </div>
 
-</div>
+<!-- ===== MAIN ===== -->
 
-<!-- SETTINGS -->
-<div id="settingsPanel">
-<h3>Settings</h3>
+<div id="main">
 
-<button onclick="Voice.toggleGender()">Voice Gender</button>
-<button onclick="Voice.toggleLanguage()">Language</button>
-<button onclick="Cloud.connect()">Connect Cloud</button>
-<button onclick="UI.toggleSettings()">Close</button>
+<header>🧠 JARVIS AI CORE</header>
 
+<div id="chat"></div>
+
+<textarea id="input"></textarea>
+
+<div>
+<button onclick="send()">Send</button>
+<button onclick="voiceInput()">🎤 Voice</button>
 </div>
 
 </div>
 
+<script>
 
-<script type="module">
+/* ================= DATABASE ================= */
 
-import { UI } from "./ui/sidebar.js";
-import { Jarvis } from "./ai/coreEngine.js";
-import { Voice } from "./voice/speechInput.js";
-import { Cloud } from "./cloud/cloudSync.js";
+let db = JSON.parse(localStorage.getItem("jarvisDB")) || {
 
-window.UI = UI;
-window.Jarvis = Jarvis;
-window.Voice = Voice;
-window.Cloud = Cloud;
+tabs:{default:[]},
+activeTab:"default",
 
-Jarvis.boot();
+memory:{},
+vector:[],
+
+settings:{
+language:"en",
+voice:true
+}
+
+};
+
+function save(){
+localStorage.setItem("jarvisDB", JSON.stringify(db));
+}
+
+/* ================= DOM ================= */
+
+let chat = document.getElementById("chat");
+let input = document.getElementById("input");
+let tabs = document.getElementById("tabs");
+
+/* ================= CHAT RENDER ================= */
+
+function render(role,text){
+
+let div = document.createElement("div");
+div.className = role;
+div.textContent = (role==="user"?"You: ":"Jarvis: ")+text;
+
+chat.appendChild(div);
+chat.scrollTop = chat.scrollHeight;
+
+}
+
+/* ================= ADD MESSAGE ================= */
+
+function add(role,text){
+
+render(role,text);
+
+db.tabs[db.activeTab].push({role,text});
+save();
+
+if(role==="ai" && db.settings.voice){
+speak(text);
+}
+
+}
+
+/* ================= MULTI CHAT SYSTEM ================= */
+
+function newChat(){
+
+let id = "chat"+Date.now();
+db.tabs[id]=[];
+db.activeTab=id;
+save();
+
+loadTabs();
+loadChat();
+
+}
+
+function loadTabs(){
+
+tabs.innerHTML="";
+
+Object.keys(db.tabs).forEach(t=>{
+
+let d=document.createElement("div");
+d.className="tab";
+d.textContent=t;
+
+d.onclick=()=>{
+db.activeTab=t;
+loadChat();
+};
+
+tabs.appendChild(d);
+
+});
+
+}
+
+function loadChat(){
+
+chat.innerHTML="";
+
+(db.tabs[db.activeTab]||[]).forEach(m=>{
+render(m.role,m.text);
+});
+
+}
+
+/* ================= VOICE OUTPUT ================= */
+
+function speak(text){
+
+let speech = new SpeechSynthesisUtterance(text);
+speech.lang = db.settings.language==="hi" ? "hi-IN":"en-US";
+
+speechSynthesis.cancel();
+speechSynthesis.speak(speech);
+
+}
+
+/* ================= VOICE INPUT ================= */
+
+function voiceInput(){
+
+let SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if(!SR){
+alert("Voice Not Supported");
+return;
+}
+
+let r = new SR();
+r.lang = db.settings.language==="hi" ? "hi-IN":"en-US";
+
+r.onresult=e=>{
+input.value = e.results[0][0].transcript;
+send();
+};
+
+r.start();
+
+}
+
+/* ================= VECTOR MEMORY ================= */
+
+function vectorStore(q,a){
+db.vector.push({q,a});
+save();
+}
+
+function vectorSearch(text){
+
+for(let v of db.vector){
+if(text.includes(v.q)) return v.a;
+}
+
+return null;
+}
+
+/* ================= AI CORE ================= */
+
+async function think(text){
+
+text = text.toLowerCase();
+
+/* TRAIN SYSTEM */
+
+if(text.startsWith("train:")){
+
+let [q,a] = text.replace("train:","").split("|");
+
+db.memory[q.trim()] = a.trim();
+vectorStore(q.trim(),a.trim());
+
+save();
+return "Training Saved";
+
+}
+
+/* VECTOR MEMORY */
+
+let vec = vectorSearch(text);
+if(vec) return vec;
+
+/* MEMORY */
+
+if(db.memory[text]) return db.memory[text];
+
+/* DEFAULT */
+
+return "🤖 Awaiting Training or Cloud Brain";
+
+}
+
+/* ================= SEND ================= */
+
+async function send(){
+
+let msg = input.value.trim();
+if(!msg) return;
+
+add("user",msg);
+add("ai","Thinking...");
+
+let reply = await think(msg);
+
+chat.removeChild(chat.lastChild);
+add("ai",reply);
+
+input.value="";
+
+}
+
+/* ================= START SYSTEM ================= */
+
+loadTabs();
+loadChat();
+add("ai","🚀 JARVIS CORE ONLINE");
 
 </script>
 
-
 <script>
-if ('serviceWorker' in navigator) {
- navigator.serviceWorker.register('sw.js');
+
+/* SERVICE WORKER */
+
+if('serviceWorker' in navigator){
+navigator.serviceWorker.register("sw.js");
 }
+
 </script>
 
 </body>

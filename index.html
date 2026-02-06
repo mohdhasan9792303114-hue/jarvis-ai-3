@@ -1,99 +1,359 @@
-import { auth, provider, dbCloud } from "./firebase.js";
+<!DOCTYPE html>
+<html lang="en">
+<head>
 
-import {
-  signInWithPopup,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-import {
-  ref,
-  set,
-  onValue
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+<title>JARVIS AI CORE</title>
 
+<link rel="manifest" href="manifest.json">
 
-let userID = null;
+<style>
 
+/* ===== GLOBAL ===== */
 
-/* LOGIN */
-export async function jarvisLogin() {
+body{
+background:#0f172a;
+color:white;
+font-family:Arial;
+margin:0;
+overflow:hidden;
+}
 
-  try {
+/* ===== HEADER ===== */
 
-    let result = await signInWithPopup(auth, provider);
+header{
+background:#0ea5e9;
+padding:12px;
+display:flex;
+align-items:center;
+gap:12px;
+}
 
-    userID = result.user.uid;
+#menuBtn{
+font-size:22px;
+cursor:pointer;
+}
 
-    console.log("Jarvis Cloud Login:", userID);
+#userEmail{
+font-size:12px;
+color:#e2e8f0;
+margin-left:auto;
+}
 
-    loadCloudMemory();
+/* ===== SIDEBAR ===== */
 
-    // ✅ VERY IMPORTANT (Screenshot wali Fix)
-    return result.user;
+#sidebar{
+position:fixed;
+top:0;
+left:-260px;
+width:260px;
+height:100%;
+background:#020617;
+transition:.3s;
+padding:12px;
+z-index:999;
+overflow:auto;
+}
 
-  } catch (error) {
+#sidebar.open{
+left:0;
+}
 
-    console.error("Login Error:", error);
-    return null;
+#closeSidebar{
+float:right;
+cursor:pointer;
+font-size:18px;
+}
 
-  }
+.tab{
+background:#1e293b;
+margin:6px 0;
+padding:8px;
+display:flex;
+justify-content:space-between;
+cursor:pointer;
+}
+
+.deleteBtn{
+color:red;
+cursor:pointer;
+}
+
+/* ===== CHAT AREA ===== */
+
+#chat{
+position:fixed;
+top:60px;
+bottom:70px;
+width:100%;
+overflow:auto;
+padding:10px;
+}
+
+.user{color:#34d399;}
+.ai{color:#38bdf8;}
+
+/* ===== INPUT BAR FIXED ===== */
+
+#inputBar{
+position:fixed;
+bottom:0;
+width:100%;
+background:#020617;
+padding:8px;
+display:flex;
+gap:6px;
+}
+
+textarea{
+flex:1;
+height:50px;
+background:#1e293b;
+color:white;
+border:none;
+resize:none;
+}
+
+button{
+background:#0ea5e9;
+border:none;
+color:white;
+padding:10px;
+cursor:pointer;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+
+<div id="sidebar">
+
+<span id="closeSidebar">❌</span>
+
+<h3>Chats</h3>
+<div id="tabs"></div>
+
+<button onclick="newChat()">New Chat</button>
+<button onclick="jarvisLogin()">Cloud Login</button>
+
+</div>
+
+<!-- HEADER -->
+
+<header>
+
+<span id="menuBtn">☰</span>
+<b>JARVIS AI</b>
+
+<div id="userEmail">Not Logged</div>
+
+</header>
+
+<!-- CHAT -->
+
+<div id="chat"></div>
+
+<!-- INPUT BAR -->
+
+<div id="inputBar">
+
+<textarea id="input"></textarea>
+<button onclick="send()">Send</button>
+<button onclick="voiceInput()">🎤</button>
+
+</div>
+
+<script>
+
+/* ===== DATABASE ===== */
+
+let db = JSON.parse(localStorage.getItem("jarvisDB")) || {
+tabs:{default:[]},
+activeTab:"default",
+memory:{},
+vector:[]
+};
+
+function save(){
+localStorage.setItem("jarvisDB",JSON.stringify(db));
+}
+
+/* ===== DOM ===== */
+
+let chat=document.getElementById("chat");
+let input=document.getElementById("input");
+let tabs=document.getElementById("tabs");
+let sidebar=document.getElementById("sidebar");
+let menuBtn=document.getElementById("menuBtn");
+let closeSidebar=document.getElementById("closeSidebar");
+
+/* ===== SIDEBAR CONTROL ===== */
+
+menuBtn.onclick=()=> sidebar.classList.add("open");
+closeSidebar.onclick=()=> sidebar.classList.remove("open");
+
+/* ===== CHAT RENDER ===== */
+
+function render(role,text){
+
+let d=document.createElement("div");
+d.className=role;
+d.textContent=(role==="user"?"You: ":"Jarvis: ")+text;
+
+chat.appendChild(d);
+chat.scrollTop=chat.scrollHeight;
 
 }
 
+/* ===== ADD MESSAGE ===== */
 
-/* LOGOUT */
-export async function jarvisLogout() {
+function add(role,text){
 
-  await signOut(auth);
-  userID = null;
+render(role,text);
 
-}
+if(!db.tabs[db.activeTab]) db.tabs[db.activeTab]=[];
 
-
-/* SAVE MEMORY */
-export async function saveCloudMemory(memory) {
-
-  if (!userID || !memory) return;
-
-  try {
-
-    await set(
-      ref(dbCloud, "jarvisMemory/" + userID),
-      memory
-    );
-
-  } catch (error) {
-
-    console.error("Cloud Save Error:", error);
-
-  }
+db.tabs[db.activeTab].push({role,text});
+save();
 
 }
 
+/* ===== NEW CHAT ===== */
 
-/* LOAD MEMORY */
-function loadCloudMemory() {
+function newChat(){
 
-  if (!userID) return;
+let id="chat"+Date.now();
+db.tabs[id]=[];
+db.activeTab=id;
 
-  const memoryRef = ref(dbCloud, "jarvisMemory/" + userID);
-
-  onValue(memoryRef, (snapshot) => {
-
-    let cloudData = snapshot.val();
-
-    if (!cloudData) return;
-
-    // Safe merge
-    db.memory = {
-      ...db.memory,
-      ...cloudData
-    };
-
-    save();
-
-    console.log("Cloud Memory Synced");
-
-  });
+save();
+loadTabs();
+loadChat();
 
 }
+
+/* ===== DELETE CHAT ===== */
+
+function deleteChat(id){
+
+if(confirm("Delete chat?")){
+delete db.tabs[id];
+db.activeTab="default";
+save();
+loadTabs();
+loadChat();
+}
+
+}
+
+/* ===== LOAD TABS ===== */
+
+function loadTabs(){
+
+tabs.innerHTML="";
+
+Object.keys(db.tabs).forEach(t=>{
+
+let div=document.createElement("div");
+div.className="tab";
+
+div.innerHTML=`
+<span onclick="switchChat('${t}')">${t}</span>
+<span class="deleteBtn" onclick="deleteChat('${t}')">❌</span>
+`;
+
+tabs.appendChild(div);
+
+});
+
+}
+
+/* ===== SWITCH CHAT ===== */
+
+function switchChat(id){
+
+db.activeTab=id;
+loadChat();
+sidebar.classList.remove("open");
+
+}
+
+/* ===== LOAD CHAT ===== */
+
+function loadChat(){
+
+chat.innerHTML="";
+
+(db.tabs[db.activeTab]||[]).forEach(m=>{
+render(m.role,m.text);
+});
+
+}
+
+/* ===== SIMPLE AI ===== */
+
+function think(text){
+
+if(text.toLowerCase()=="hello") return "Hello Owner";
+
+return "Awaiting Training";
+
+}
+
+/* ===== SEND ===== */
+
+function send(){
+
+let msg=input.value.trim();
+if(!msg) return;
+
+add("user",msg);
+add("ai",think(msg));
+
+input.value="";
+
+}
+
+/* ===== VOICE PLACEHOLDER ===== */
+
+function voiceInput(){
+alert("Voice feature future upgrade me add hoga");
+}
+
+/* ===== START ===== */
+
+loadTabs();
+loadChat();
+
+if(!sessionStorage.getItem("jarvisStart")){
+add("ai","JARVIS CORE ONLINE");
+sessionStorage.setItem("jarvisStart","1");
+}
+
+</script>
+
+<!-- CLOUD MODULE -->
+
+<script type="module">
+
+import { jarvisLogin } from "./cloudSync.js";
+
+window.jarvisLogin = async ()=>{
+
+let user=await jarvisLogin();
+
+if(user){
+document.getElementById("userEmail").innerText=user.email;
+}
+
+};
+
+</script>
+
+</body>
+</html>

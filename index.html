@@ -5,14 +5,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>JARVIS MEGA AI CORE</title>
+<title>JARVIS AI CORE</title>
 
 <link rel="manifest" href="manifest.json">
 
 <style>
 
 body{
-background:black;
+background:#0f172a;
 color:white;
 font-family:Arial;
 margin:0;
@@ -22,16 +22,25 @@ display:flex;
 /* ===== SIDEBAR ===== */
 
 #sidebar{
-width:240px;
+width:260px;
 height:100vh;
-background:#111;
-border-right:1px solid #333;
+background:#020617;
+border-right:1px solid #0ea5e9;
 overflow:auto;
-padding:10px;
+padding:12px;
+position:fixed;
+left:-260px;
+top:0;
+transition:0.3s;
+z-index:999;
+}
+
+#sidebar.open{
+left:0;
 }
 
 .tab{
-background:#222;
+background:#1e293b;
 margin:5px;
 padding:8px;
 cursor:pointer;
@@ -44,23 +53,25 @@ color:red;
 cursor:pointer;
 }
 
-/* ===== MAIN PANEL ===== */
+/* ===== MAIN ===== */
 
 #main{
 flex:1;
 display:flex;
 flex-direction:column;
+margin-left:0;
+width:100%;
 }
 
 header{
-background:#003cff;
+background:#0ea5e9;
 padding:12px;
 text-align:center;
 }
 
 #userEmail{
 font-size:12px;
-color:#ccc;
+color:#e2e8f0;
 }
 
 #chat{
@@ -73,7 +84,7 @@ textarea{
 width:100%;
 min-height:50px;
 max-height:120px;
-background:#222;
+background:#1e293b;
 color:white;
 border:none;
 resize:none;
@@ -83,18 +94,20 @@ overflow:auto;
 button{
 padding:10px;
 margin:3px;
-background:#007acc;
+background:#0ea5e9;
 color:white;
 border:none;
 }
 
-.user{color:#00ff9d;}
-.ai{color:#00e5ff;}
+.user{color:#34d399;}
+.ai{color:#38bdf8;}
 
 </style>
 </head>
 
 <body>
+
+<!-- ===== SIDEBAR ===== -->
 
 <div id="sidebar">
 
@@ -105,6 +118,8 @@ border:none;
 <button onclick="jarvisLogin()">☁ Cloud Login</button>
 
 </div>
+
+<!-- ===== MAIN ===== -->
 
 <div id="main">
 
@@ -126,7 +141,7 @@ border:none;
 
 <script>
 
-/* DATABASE */
+/* ===== DATABASE ===== */
 
 let db = JSON.parse(localStorage.getItem("jarvisDB")) || {
 
@@ -138,7 +153,7 @@ vector:[],
 
 settings:{
 language:"en",
-voice:false   // ✅ Voice default OFF
+voice:false
 }
 
 };
@@ -147,14 +162,13 @@ function save(){
 localStorage.setItem("jarvisDB", JSON.stringify(db));
 }
 
-/* DOM */
+/* ===== DOM ===== */
 
 let chat = document.getElementById("chat");
 let input = document.getElementById("input");
 let tabs = document.getElementById("tabs");
-let userEmail = document.getElementById("userEmail");
 
-/* CHAT RENDER */
+/* ===== CHAT RENDER ===== */
 
 function render(role,text){
 
@@ -167,7 +181,7 @@ chat.scrollTop = chat.scrollHeight;
 
 }
 
-/* ADD MESSAGE */
+/* ===== ADD MESSAGE ===== */
 
 function add(role,text){
 
@@ -176,20 +190,25 @@ render(role,text);
 db.tabs[db.activeTab].push({role,text});
 save();
 
-/* Voice only if enabled */
+/* Cloud Save */
+if(window.saveCloudMemory){
+saveCloudMemory();
+}
+
+/* Voice Only If Enabled */
 if(role==="ai" && db.settings.voice){
 speak(text);
 }
 
 }
 
-/* CHAT DELETE */
+/* ===== CHAT DELETE ===== */
 
 function deleteChat(id){
 
 if(confirm("Delete Chat?")){
 delete db.tabs[id];
-db.activeTab = "default";
+db.activeTab="default";
 save();
 loadTabs();
 loadChat();
@@ -197,7 +216,7 @@ loadChat();
 
 }
 
-/* MULTI CHAT */
+/* ===== MULTI CHAT ===== */
 
 function newChat(){
 
@@ -220,7 +239,7 @@ Object.keys(db.tabs).forEach(t=>{
 let d=document.createElement("div");
 d.className="tab";
 
-d.innerHTML = `
+d.innerHTML=`
 <span onclick="switchChat('${t}')">${t}</span>
 <span class="deleteBtn" onclick="deleteChat('${t}')">❌</span>
 `;
@@ -232,8 +251,13 @@ tabs.appendChild(d);
 }
 
 function switchChat(id){
+
 db.activeTab=id;
 loadChat();
+
+/* Auto close sidebar */
+document.getElementById("sidebar").classList.remove("open");
+
 }
 
 function loadChat(){
@@ -246,7 +270,7 @@ render(m.role,m.text);
 
 }
 
-/* VOICE OUTPUT */
+/* ===== VOICE OUTPUT ===== */
 
 function speak(text){
 
@@ -258,11 +282,11 @@ speechSynthesis.speak(speech);
 
 }
 
-/* VOICE INPUT */
+/* ===== VOICE INPUT ===== */
 
 function voiceInput(){
 
-db.settings.voice = true;
+db.settings.voice=true;
 save();
 
 let SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -275,7 +299,7 @@ return;
 let r = new SR();
 
 r.onresult=e=>{
-input.value = e.results[0][0].transcript;
+input.value=e.results[0][0].transcript;
 send();
 };
 
@@ -283,7 +307,7 @@ r.start();
 
 }
 
-/* VECTOR MEMORY */
+/* ===== VECTOR MEMORY ===== */
 
 function vectorStore(q,a){
 db.vector.push({q,a});
@@ -299,29 +323,28 @@ if(text.includes(v.q)) return v.a;
 return null;
 }
 
-/* AI CORE */
+/* ===== AI CORE ===== */
 
 async function think(text){
 
-text = text.toLowerCase();
+text=text.toLowerCase();
 
 if(text.startsWith("train:")){
 
-let [q,a] = text.replace("train:","").split("|");
+let [q,a]=text.replace("train:","").split("|");
 
 db.memory[q.trim()] = a.trim();
 vectorStore(q.trim(),a.trim());
-
 save();
 
 if(window.saveCloudMemory){
-saveCloudMemory(q.trim(),a.trim());
+saveCloudMemory();
 }
 
 return "Training Saved";
 }
 
-let vec = vectorSearch(text);
+let vec=vectorSearch(text);
 if(vec) return vec;
 
 if(db.memory[text]) return db.memory[text];
@@ -330,33 +353,58 @@ return "🤖 Awaiting Training or Cloud Brain";
 
 }
 
-/* SEND */
+/* ===== SEND ===== */
 
 async function send(){
 
-let msg = input.value.trim();
+let msg=input.value.trim();
 if(!msg) return;
 
 add("user",msg);
 add("ai","Thinking...");
 
-let reply = await think(msg);
+let reply=await think(msg);
 
 chat.removeChild(chat.lastChild);
 add("ai",reply);
 
 input.value="";
-input.blur();   // ✅ Chat bar close
+input.blur();
 
 }
 
-/* START */
+/* ===== SIDEBAR SWIPE ===== */
+
+let startX=0;
+
+document.body.addEventListener("touchstart",e=>{
+startX=e.touches[0].clientX;
+});
+
+document.body.addEventListener("touchend",e=>{
+
+let endX=e.changedTouches[0].clientX;
+let sidebar=document.getElementById("sidebar");
+
+if(startX<50 && endX>120){
+sidebar.classList.add("open");
+}
+
+if(startX>200 && endX<120){
+sidebar.classList.remove("open");
+}
+
+});
+
+/* ===== START ===== */
 
 loadTabs();
 loadChat();
 add("ai","🚀 JARVIS CORE ONLINE");
 
 </script>
+
+<!-- ===== CLOUD MODULE ===== -->
 
 <script type="module">
 
@@ -365,7 +413,7 @@ import { jarvisLogin, saveCloudMemory, getUserEmail } from "./cloudSync.js";
 window.jarvisLogin = async ()=>{
 await jarvisLogin();
 let email = await getUserEmail();
-userEmail.innerText = email || "Logged In";
+document.getElementById("userEmail").innerText = email || "Logged In";
 };
 
 window.saveCloudMemory = saveCloudMemory;

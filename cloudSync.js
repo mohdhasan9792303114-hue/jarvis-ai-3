@@ -11,39 +11,60 @@ import {
   onValue
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-
 let userID = null;
 
 
-// LOGIN
+/* ================= LOGIN ================= */
+
 export async function jarvisLogin() {
 
   let result = await signInWithPopup(auth, provider);
+
   userID = result.user.uid;
 
   console.log("Jarvis Cloud Login:", userID);
 
   loadCloudMemory();
+
+  return result.user.email;   // ✅ Email return
 }
 
 
-// LOGOUT
+/* ================= LOGOUT ================= */
+
 export async function jarvisLogout() {
+
   await signOut(auth);
   userID = null;
+
 }
 
 
-// SAVE MEMORY
-export async function saveCloudMemory(memory) {
+/* ================= GET USER EMAIL ================= */
+
+export function getUserEmail() {
+
+  return auth.currentUser?.email || null;
+
+}
+
+
+/* ================= SAVE MEMORY ================= */
+
+export async function saveCloudMemory(q, a) {
 
   if (!userID) return;
 
-  await set(ref(dbCloud, "jarvisMemory/" + userID), memory);
+  await set(
+    ref(dbCloud, "jarvisMemory/" + userID + "/" + q),
+    a
+  );
+
 }
 
 
-// LOAD MEMORY
+/* ================= LOAD MEMORY ================= */
+
 function loadCloudMemory() {
 
   if (!userID) return;
@@ -55,13 +76,16 @@ function loadCloudMemory() {
     let cloudData = snapshot.val();
     if (!cloudData) return;
 
-    db.memory = {
-      ...db.memory,
+    /* Merge cloud memory */
+    window.db.memory = {
+      ...window.db.memory,
       ...cloudData
     };
 
-    save();
+    window.save();
 
     console.log("Cloud Memory Synced");
+
   });
+
 }

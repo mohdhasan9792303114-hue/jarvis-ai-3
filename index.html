@@ -83,18 +83,15 @@ border:none;
 
 <body>
 
-<!-- ===== SIDEBAR ===== -->
-
 <div id="sidebar">
 
 <h3>Chats</h3>
 <div id="tabs"></div>
 
 <button onclick="newChat()">➕ New Chat</button>
+<button onclick="jarvisLogin()">☁ Cloud Login</button>
 
 </div>
-
-<!-- ===== MAIN ===== -->
 
 <div id="main">
 
@@ -280,6 +277,12 @@ db.memory[q.trim()] = a.trim();
 vectorStore(q.trim(),a.trim());
 
 save();
+
+/* CLOUD SAVE */
+if(window.saveCloudMemory){
+saveCloudMemory(q.trim(),a.trim());
+}
+
 return "Training Saved";
 
 }
@@ -319,20 +322,21 @@ input.value="";
 }
 
 /* ================= START SYSTEM ================= */
-<script type="module">
-
-import { jarvisLogin, saveCloudMemory } from "./cloudSync.js";
-
-window.jarvisLogin = jarvisLogin;
-window.saveCloudMemory = saveCloudMemory;
-
 
 loadTabs();
 loadChat();
 add("ai","🚀 JARVIS CORE ONLINE");
 
 </script>
-add("ai","🚀 JARVIS CORE ONLINE");
+
+<!-- ===== CLOUD MODULE ===== -->
+
+<script type="module">
+
+import { jarvisLogin, saveCloudMemory } from "./cloudSync.js";
+
+window.jarvisLogin = jarvisLogin;
+window.saveCloudMemory = saveCloudMemory;
 
 </script>
 

@@ -11,8 +11,6 @@
 
 <style>
 
-/* ===== GLOBAL ===== */
-
 body{
 background:#0f172a;
 color:white;
@@ -21,7 +19,7 @@ margin:0;
 overflow:hidden;
 }
 
-/* ===== HEADER ===== */
+/* HEADER */
 
 header{
 background:#0ea5e9;
@@ -38,11 +36,10 @@ cursor:pointer;
 
 #userEmail{
 font-size:12px;
-color:#e2e8f0;
 margin-left:auto;
 }
 
-/* ===== SIDEBAR ===== */
+/* SIDEBAR */
 
 #sidebar{
 position:fixed;
@@ -64,24 +61,9 @@ left:0;
 #closeSidebar{
 float:right;
 cursor:pointer;
-font-size:18px;
 }
 
-.tab{
-background:#1e293b;
-margin:6px 0;
-padding:8px;
-display:flex;
-justify-content:space-between;
-cursor:pointer;
-}
-
-.deleteBtn{
-color:red;
-cursor:pointer;
-}
-
-/* ===== CHAT AREA ===== */
+/* CHAT */
 
 #chat{
 position:fixed;
@@ -95,7 +77,7 @@ padding:10px;
 .user{color:#34d399;}
 .ai{color:#38bdf8;}
 
-/* ===== INPUT BAR FIXED ===== */
+/* INPUT */
 
 #inputBar{
 position:fixed;
@@ -124,6 +106,20 @@ padding:10px;
 cursor:pointer;
 }
 
+.tab{
+background:#1e293b;
+margin:6px 0;
+padding:8px;
+display:flex;
+justify-content:space-between;
+cursor:pointer;
+}
+
+.deleteBtn{
+color:red;
+cursor:pointer;
+}
+
 </style>
 </head>
 
@@ -143,34 +139,23 @@ cursor:pointer;
 
 </div>
 
-<!-- HEADER -->
-
 <header>
-
 <span id="menuBtn">☰</span>
 <b>JARVIS AI</b>
-
 <div id="userEmail">Not Logged</div>
-
 </header>
-
-<!-- CHAT -->
 
 <div id="chat"></div>
 
-<!-- INPUT BAR -->
-
 <div id="inputBar">
-
 <textarea id="input"></textarea>
 <button onclick="send()">Send</button>
 <button onclick="voiceInput()">🎤</button>
-
 </div>
 
 <script>
 
-/* ===== DATABASE ===== */
+/* DATABASE */
 
 let db = JSON.parse(localStorage.getItem("jarvisDB")) || {
 tabs:{default:[]},
@@ -183,7 +168,7 @@ function save(){
 localStorage.setItem("jarvisDB",JSON.stringify(db));
 }
 
-/* ===== DOM ===== */
+/* DOM */
 
 let chat=document.getElementById("chat");
 let input=document.getElementById("input");
@@ -192,12 +177,12 @@ let sidebar=document.getElementById("sidebar");
 let menuBtn=document.getElementById("menuBtn");
 let closeSidebar=document.getElementById("closeSidebar");
 
-/* ===== SIDEBAR CONTROL ===== */
+/* SIDEBAR CONTROL */
 
 menuBtn.onclick=()=> sidebar.classList.add("open");
 closeSidebar.onclick=()=> sidebar.classList.remove("open");
 
-/* ===== CHAT RENDER ===== */
+/* RENDER */
 
 function render(role,text){
 
@@ -210,24 +195,26 @@ chat.scrollTop=chat.scrollHeight;
 
 }
 
-/* ===== ADD MESSAGE ===== */
+/* ADD MESSAGE */
 
 function add(role,text){
 
 render(role,text);
 
-if(!db.tabs[db.activeTab]) db.tabs[db.activeTab]=[];
+if(!db.tabs[db.activeTab])
+db.tabs[db.activeTab]=[];
 
 db.tabs[db.activeTab].push({role,text});
 save();
 
 }
 
-/* ===== NEW CHAT ===== */
+/* NEW CHAT */
 
 function newChat(){
 
 let id="chat"+Date.now();
+
 db.tabs[id]=[];
 db.activeTab=id;
 
@@ -237,11 +224,13 @@ loadChat();
 
 }
 
-/* ===== DELETE CHAT ===== */
+/* DELETE CHAT */
 
 function deleteChat(id){
 
-if(confirm("Delete chat?")){
+if(!db.tabs[id]) return;
+
+if(confirm("Delete Chat?")){
 delete db.tabs[id];
 db.activeTab="default";
 save();
@@ -251,7 +240,7 @@ loadChat();
 
 }
 
-/* ===== LOAD TABS ===== */
+/* LOAD TABS */
 
 function loadTabs(){
 
@@ -273,17 +262,15 @@ tabs.appendChild(div);
 
 }
 
-/* ===== SWITCH CHAT ===== */
+/* SWITCH CHAT */
 
 function switchChat(id){
-
 db.activeTab=id;
 loadChat();
 sidebar.classList.remove("open");
-
 }
 
-/* ===== LOAD CHAT ===== */
+/* LOAD CHAT */
 
 function loadChat(){
 
@@ -295,17 +282,21 @@ render(m.role,m.text);
 
 }
 
-/* ===== SIMPLE AI ===== */
+/* SIMPLE AI */
 
 function think(text){
 
-if(text.toLowerCase()=="hello") return "Hello Owner";
+text=text.toLowerCase();
+
+if(text==="hello") return "Hello Owner";
+
+if(db.memory[text]) return db.memory[text];
 
 return "Awaiting Training";
 
 }
 
-/* ===== SEND ===== */
+/* SEND */
 
 function send(){
 
@@ -319,13 +310,13 @@ input.value="";
 
 }
 
-/* ===== VOICE PLACEHOLDER ===== */
+/* VOICE PLACEHOLDER */
 
 function voiceInput(){
-alert("Voice feature future upgrade me add hoga");
+alert("Voice coming soon");
 }
 
-/* ===== START ===== */
+/* START */
 
 loadTabs();
 loadChat();
@@ -337,7 +328,7 @@ sessionStorage.setItem("jarvisStart","1");
 
 </script>
 
-<!-- CLOUD MODULE -->
+<!-- CLOUD -->
 
 <script type="module">
 
@@ -345,10 +336,16 @@ import { jarvisLogin } from "./cloudSync.js";
 
 window.jarvisLogin = async ()=>{
 
-let user=await jarvisLogin();
+try{
+
+let user = await jarvisLogin();
 
 if(user){
 document.getElementById("userEmail").innerText=user.email;
+}
+
+}catch{
+alert("Cloud Login Failed");
 }
 
 };

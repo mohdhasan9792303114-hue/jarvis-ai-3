@@ -1,353 +1,88 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>JARVIS 15 AUTONOMOUS SELF EVOLVING AI</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<link rel="manifest" href="manifest.json">
+<title>JARVIS MEGA AI</title>
 
-<style>
-body{background:black;color:white;font-family:Arial;margin:0;}
-header{background:#001cff;padding:12px;text-align:center;}
+<link rel="manifest" href="manifest.json" />
 
-#sidebar{
-position:fixed;left:0;top:0;width:230px;height:100%;
-background:#111;overflow:auto;padding:10px;border-right:1px solid #333;
-}
+<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/sidebar.css">
 
-#main{margin-left:230px;}
-#chat{height:55vh;overflow:auto;padding:10px;}
-textarea{width:100%;height:80px;background:#222;color:white;}
-
-button{padding:10px;margin:2px;background:#007acc;color:white;border:none;}
-.tab{padding:6px;background:#222;margin:4px;cursor:pointer;}
-
-.settings{
-position:fixed;right:0;top:0;width:260px;height:100%;
-background:#111;padding:10px;display:none;
-}
-</style>
 </head>
 
 <body>
 
-<header>🧠 JARVIS 15 AUTONOMOUS SELF EVOLVING AI</header>
+<header class="topBar">
+🧠 JARVIS MEGA AI
+<button onclick="UI.toggleSidebar()">☰</button>
+<button onclick="UI.toggleSettings()">⚙</button>
+</header>
 
+<div id="appContainer">
+
+<!-- SIDEBAR -->
 <div id="sidebar">
-<h3>Chats</h3>
-<div id="tabs"></div>
-<button onclick="newTab()">➕ New Chat</button>
-<button onclick="toggleChat()">🔽 Toggle Chat</button>
+<h3>Conversations</h3>
+
+<div id="chatTabs"></div>
+
+<button onclick="UI.newChat()">➕ New Chat</button>
 </div>
 
-<div id="main">
-<div id="chat"></div>
-<textarea id="input"></textarea>
+<!-- MAIN CHAT -->
+<div id="mainPanel">
 
-<div>
-<button onclick="send()">Send</button>
-<button onclick="voiceInput()">🎤 Voice</button>
-<button onclick="toggleWake()">🧠 Wake</button>
-<button onclick="toggleAutoAI()">⚡ Auto AI</button>
-<button onclick="openSettings()">⚙ Settings</button>
-</div>
+<div id="chatWindow"></div>
+
+<div id="chatBar">
+
+<textarea id="chatInput"></textarea>
+
+<button onclick="Jarvis.send()">Send</button>
+<button onclick="Voice.startInput()">🎤</button>
+
 </div>
 
-<div class="settings" id="settingsPanel">
+</div>
+
+<!-- SETTINGS -->
+<div id="settingsPanel">
 <h3>Settings</h3>
-<button onclick="toggleLang()">Language</button>
-<button onclick="connectLLM()">Connect AI Brain</button>
-<button onclick="connectGmail()">Connect Gmail</button>
-<button onclick="closeSettings()">Close</button>
+
+<button onclick="Voice.toggleGender()">Voice Gender</button>
+<button onclick="Voice.toggleLanguage()">Language</button>
+<button onclick="Cloud.connect()">Connect Cloud</button>
+<button onclick="UI.toggleSettings()">Close</button>
+
 </div>
 
-<script>
+</div>
 
-/* DATABASE */
-let db=JSON.parse(localStorage.getItem("jarvis_db")||`{
-memory:{},
-vector:[],
-tabs:{default:[]},
-activeTab:"default",
-wake:false,
-language:"en",
-llmKey:"",
-gmailConnected:false,
-autoAI:false,
-goals:[]
-}`);
 
-function save(){localStorage.setItem("jarvis_db",JSON.stringify(db));}
+<script type="module">
 
-/* DOM */
-let chat=document.getElementById("chat");
-let input=document.getElementById("input");
-let tabs=document.getElementById("tabs");
-let settingsPanel=document.getElementById("settingsPanel");
+import { UI } from "./ui/sidebar.js";
+import { Jarvis } from "./ai/coreEngine.js";
+import { Voice } from "./voice/speechInput.js";
+import { Cloud } from "./cloud/cloudSync.js";
 
-/* CHAT TOGGLE */
-function toggleChat(){
-chat.style.display=chat.style.display==="none"?"block":"none";
-}
+window.UI = UI;
+window.Jarvis = Jarvis;
+window.Voice = Voice;
+window.Cloud = Cloud;
 
-/* TABS */
-function newTab(){
-let name="chat"+Date.now();
-db.tabs[name]=[];
-db.activeTab=name;
-save();
-updateTabs();
-loadTab();
-}
-
-function updateTabs(){
-tabs.innerHTML="";
-Object.keys(db.tabs).forEach(t=>{
-let d=document.createElement("div");
-d.className="tab";
-d.innerText=t;
-d.onclick=()=>{db.activeTab=t;loadTab();}
-tabs.appendChild(d);
-});
-}
-
-function loadTab(){
-chat.innerHTML="";
-(db.tabs[db.activeTab]||[]).forEach(m=>renderMessage(m.role,m.text));
-}
-
-/* MESSAGE */
-function renderMessage(role,text){
-let div=document.createElement("div");
-div.textContent=(role==="user"?"You":"Jarvis")+": "+text;
-chat.appendChild(div);
-chat.scrollTop=chat.scrollHeight;
-}
-
-function add(role,text){
-renderMessage(role,text);
-db.tabs[db.activeTab].push({role,text});
-save();
-if(role==="ai") speak(text);
-}
-
-/* VOICE OUTPUT */
-function speak(text){
-try{
-let u=new SpeechSynthesisUtterance(text);
-u.lang=db.language==="hi"?"hi-IN":"en-US";
-speechSynthesis.cancel();
-speechSynthesis.speak(u);
-}catch{}
-}
-
-document.body.onclick=()=>speechSynthesis.resume();
-
-/* VOICE INPUT */
-function voiceInput(){
-let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(!SR){alert("Voice unsupported");return;}
-
-let r=new SR();
-r.lang=db.language==="hi"?"hi-IN":"en-US";
-
-r.onresult=e=>{
-input.value=e.results[0][0].transcript;
-send();
-};
-
-r.start();
-}
-
-/* WAKE SYSTEM */
-let wakeRec=null;
-
-function toggleWake(){
-db.wake=!db.wake;
-save();
-if(db.wake) startWake();
-else if(wakeRec) wakeRec.stop();
-}
-
-function startWake(){
-let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(!SR) return;
-
-wakeRec=new SR();
-wakeRec.continuous=true;
-
-wakeRec.onresult=e=>{
-let t=e.results[e.results.length-1][0].transcript.toLowerCase();
-if(t.includes("jarvis")){
-input.value=t.replace("jarvis","");
-send();
-}
-};
-
-wakeRec.start();
-}
-
-/* VECTOR MEMORY */
-function vectorStore(q,a){
-db.vector.push({q,a});
-if(db.vector.length>300) db.vector.shift();
-save();
-}
-
-function vectorSearch(text){
-for(let v of db.vector){
-if(text.includes(v.q)) return v.a;
-}
-return null;
-}
-
-/* AUTO AI */
-function toggleAutoAI(){
-db.autoAI=!db.autoAI;
-save();
-add("ai","Auto AI "+db.autoAI);
-}
-
-/* CLOUD AI */
-async function askLLM(text){
-if(!db.llmKey) return null;
-
-try{
-let r=await fetch("https://api.openai.com/v1/chat/completions",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+db.llmKey
-},
-body:JSON.stringify({
-model:"gpt-4o-mini",
-messages:[{role:"user",content:text}]
-})
-});
-
-let j=await r.json();
-return j?.choices?.[0]?.message?.content||null;
-
-}catch{return null;}
-}
-
-function connectLLM(){
-let key=prompt("Enter API Key");
-if(!key) return;
-db.llmKey=key;
-save();
-add("ai","Cloud Brain Connected");
-}
-
-/* GMAIL */
-function connectGmail(){
-db.gmailConnected=true;
-save();
-add("ai","Gmail Connected");
-}
-
-/* SETTINGS */
-function openSettings(){settingsPanel.style.display="block";}
-function closeSettings(){settingsPanel.style.display="none";}
-
-function toggleLang(){
-db.language=db.language==="en"?"hi":"en";
-save();
-add("ai","Language Switched");
-}
-
-/* ===== MEMORY DATABASE ===== */
-
-let db = JSON.parse(localStorage.getItem("jarvisMemory")) || {
-    memory:{}
-};
-
-function saveMemory(){
-    localStorage.setItem("jarvisMemory", JSON.stringify(db));
-}
-
-
-/* ===== THINK FUNCTION ===== */
-
-async function think(text){
-
-text = text.trim();
-
-/* ===== TRAIN SYSTEM ===== */
-
-if(text.toLowerCase().startsWith("train")){
-
-    let parts = text.split("=");
-
-    if(parts.length === 2){
-
-        let q = parts[0].replace("train","").trim();
-        let a = parts[1].trim();
-
-        db.memory[q] = a;
-        saveMemory();
-
-        return "✅ Training saved permanently";
-    }
-
-    return "⚠️ Use format: train question = answer";
-}
-
-
-/* ===== MEMORY REPLY ===== */
-
-if(db.memory[text]){
-    return db.memory[text];
-}
-
-
-/* ===== EXISTING LLM CALL ===== */
-
-let llm = await askLLM(text);
-if(llm) return llm;
-
-return "🤖 Talk or train me";
-}
-
-
-/* ===== SEND ===== */
-
-async function send(){
-
-let msg=input.value.trim();
-if(!msg) return;
-
-add("user",msg);
-add("ai","Thinking...");
-
-let reply=await think(msg);
-
-/* SAFE remove thinking message */
-if(chat.lastChild){
-    chat.removeChild(chat.lastChild);
-}
-
-add("ai",reply);
-
-input.value="";
-}
-
-
-/* ===== START ===== */
-
-updateTabs();
-loadTab();
-add("ai","🚀 Jarvis 15 Autonomous Ready");
+Jarvis.boot();
 
 </script>
 
+
 <script>
-
-/* ===== SERVICE WORKER ===== */
-
 if ('serviceWorker' in navigator) {
  navigator.serviceWorker.register('sw.js');
 }
-
 </script>
 
 </body>

@@ -11,74 +11,114 @@ import {
  onValue
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-let userID=null;
-let userEmail=null;
 
-/* LOGIN */
+let userID = null;
+let userEmail = null;
+
+
+/* ===== LOGIN ===== */
 
 export async function jarvisLogin(){
 
-let result = await signInWithPopup(auth,provider);
+ try{
 
-userID = result.user.uid;
-userEmail = result.user.email;
+   let result = await signInWithPopup(auth,provider);
 
-syncAllCloud();
+   userID = result.user.uid;
+   userEmail = result.user.email;
+
+   console.log("Jarvis Cloud Login:", userEmail);
+
+   syncAllCloud();
+
+   return result.user;
+
+ }catch(e){
+   console.error("Login Error",e);
+   return null;
+ }
 
 }
 
-/* EMAIL */
+
+/* ===== LOGOUT ===== */
+
+export async function jarvisLogout(){
+
+ if(!userID) return;
+
+ await signOut(auth);
+
+ userID=null;
+ userEmail=null;
+
+}
+
+
+/* ===== GET EMAIL ===== */
 
 export function getUserEmail(){
-return userEmail;
+ return userEmail;
 }
 
-/* FULL SYNC */
+
+/* ===== LIVE FULL SYNC ===== */
 
 function syncAllCloud(){
 
-if(!userID) return;
+ if(!userID) return;
 
-let refAll = ref(dbCloud,"jarvisUsers/"+userID);
+ const refAll = ref(dbCloud,"jarvisUsers/"+userID);
 
-onValue(refAll,snapshot=>{
+ onValue(refAll,(snapshot)=>{
 
-let cloudData = snapshot.val();
-if(!cloudData) return;
+   let cloudData = snapshot.val();
 
-/* Merge chats */
-if(cloudData.tabs){
-db.tabs = {...db.tabs,...cloudData.tabs};
+   if(!cloudData) return;
+
+   /* SAFE CHECK db */
+   if(typeof db === "undefined") return;
+
+   /* ===== MERGE CHATS ===== */
+   if(cloudData.tabs){
+     db.tabs = {...db.tabs,...cloudData.tabs};
+   }
+
+   /* ===== MERGE MEMORY ===== */
+   if(cloudData.memory){
+     db.memory = {...db.memory,...cloudData.memory};
+   }
+
+   /* ===== MERGE VECTOR ===== */
+   if(cloudData.vector){
+     db.vector = cloudData.vector;
+   }
+
+   if(typeof save === "function"){
+     save();
+   }
+
+   console.log("Cloud Sync Updated");
+
+ });
+
 }
 
-/* Merge memory */
-if(cloudData.memory){
-db.memory = {...db.memory,...cloudData.memory};
-}
 
-/* Merge vector */
-if(cloudData.vector){
-db.vector = cloudData.vector;
-}
+/* ===== SAVE FULL CLOUD DATA ===== */
 
-save();
+export function saveCloudMemory(){
 
-});
+ if(!userID) return;
 
-}
+ if(typeof db === "undefined") return;
 
-/* SAVE ALL */
+ set(ref(dbCloud,"jarvisUsers/"+userID),{
 
-export function saveCloudMemory(q,a){
+   tabs: db.tabs || {},
+   memory: db.memory || {},
+   vector: db.vector || []
 
-if(!userID) return;
-
-set(ref(dbCloud,"jarvisUsers/"+userID),{
-
-tabs: db.tabs,
-memory: db.memory,
-vector: db.vector
-
-});
+ });
 
 }

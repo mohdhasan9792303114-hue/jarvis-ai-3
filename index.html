@@ -19,7 +19,7 @@ margin:0;
 display:flex;
 }
 
-/* ===== SIDEBAR ===== */
+/* SIDEBAR */
 
 #sidebar{
 width:260px;
@@ -41,11 +41,12 @@ left:0;
 
 .tab{
 background:#1e293b;
-margin:5px;
-padding:8px;
+margin:6px;
+padding:10px;
 cursor:pointer;
 display:flex;
 justify-content:space-between;
+border-radius:6px;
 }
 
 .deleteBtn{
@@ -53,13 +54,12 @@ color:red;
 cursor:pointer;
 }
 
-/* ===== MAIN ===== */
+/* MAIN */
 
 #main{
 flex:1;
 display:flex;
 flex-direction:column;
-margin-left:0;
 width:100%;
 }
 
@@ -77,7 +77,7 @@ color:#e2e8f0;
 #chat{
 flex:1;
 overflow:auto;
-padding:10px;
+padding:12px;
 }
 
 textarea{
@@ -88,7 +88,7 @@ background:#1e293b;
 color:white;
 border:none;
 resize:none;
-overflow:auto;
+padding:10px;
 }
 
 button{
@@ -97,6 +97,7 @@ margin:3px;
 background:#0ea5e9;
 color:white;
 border:none;
+border-radius:6px;
 }
 
 .user{color:#34d399;}
@@ -107,8 +108,6 @@ border:none;
 
 <body>
 
-<!-- ===== SIDEBAR ===== -->
-
 <div id="sidebar">
 
 <h3>Chats</h3>
@@ -118,8 +117,6 @@ border:none;
 <button onclick="jarvisLogin()">☁ Cloud Login</button>
 
 </div>
-
-<!-- ===== MAIN ===== -->
 
 <div id="main">
 
@@ -141,47 +138,39 @@ border:none;
 
 <script>
 
-/* ===== DATABASE ===== */
+/* DATABASE */
 
 let db = JSON.parse(localStorage.getItem("jarvisDB")) || {
-
 tabs:{default:[]},
 activeTab:"default",
-
 memory:{},
 vector:[],
-
-settings:{
-language:"en",
-voice:false
-}
-
+settings:{ voice:false }
 };
 
 function save(){
 localStorage.setItem("jarvisDB", JSON.stringify(db));
 }
 
-/* ===== DOM ===== */
+/* DOM */
 
-let chat = document.getElementById("chat");
-let input = document.getElementById("input");
-let tabs = document.getElementById("tabs");
+let chat=document.getElementById("chat");
+let input=document.getElementById("input");
+let tabs=document.getElementById("tabs");
 
-/* ===== CHAT RENDER ===== */
+/* RENDER */
 
 function render(role,text){
 
-let div = document.createElement("div");
-div.className = role;
-div.textContent = (role==="user"?"You: ":"Jarvis: ")+text;
+let div=document.createElement("div");
+div.className=role;
+div.textContent=(role==="user"?"You: ":"Jarvis: ")+text;
 
 chat.appendChild(div);
-chat.scrollTop = chat.scrollHeight;
-
+chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== ADD MESSAGE ===== */
+/* ADD */
 
 function add(role,text){
 
@@ -190,19 +179,12 @@ render(role,text);
 db.tabs[db.activeTab].push({role,text});
 save();
 
-/* Cloud Save */
-if(window.saveCloudMemory){
-saveCloudMemory();
-}
-
-/* Voice Only If Enabled */
 if(role==="ai" && db.settings.voice){
 speak(text);
 }
-
 }
 
-/* ===== CHAT DELETE ===== */
+/* CHAT DELETE */
 
 function deleteChat(id){
 
@@ -213,21 +195,26 @@ save();
 loadTabs();
 loadChat();
 }
-
 }
 
-/* ===== MULTI CHAT ===== */
+/* CHAT SYSTEM */
 
 function newChat(){
 
-let id = "chat"+Date.now();
+let id="chat"+Date.now();
 db.tabs[id]=[];
 db.activeTab=id;
-save();
 
+save();
 loadTabs();
 loadChat();
+}
 
+function switchChat(id){
+
+db.activeTab=id;
+loadChat();
+document.getElementById("sidebar").classList.remove("open");
 }
 
 function loadTabs(){
@@ -245,58 +232,36 @@ d.innerHTML=`
 `;
 
 tabs.appendChild(d);
-
 });
-
-}
-
-function switchChat(id){
-
-db.activeTab=id;
-loadChat();
-
-/* Auto close sidebar */
-document.getElementById("sidebar").classList.remove("open");
-
 }
 
 function loadChat(){
 
 chat.innerHTML="";
-
-(db.tabs[db.activeTab]||[]).forEach(m=>{
-render(m.role,m.text);
-});
-
+(db.tabs[db.activeTab]||[]).forEach(m=>render(m.role,m.text));
 }
 
-/* ===== VOICE OUTPUT ===== */
+/* VOICE */
 
 function speak(text){
-
-let speech = new SpeechSynthesisUtterance(text);
-speech.lang = "en-US";
-
+let speech=new SpeechSynthesisUtterance(text);
 speechSynthesis.cancel();
 speechSynthesis.speak(speech);
-
 }
-
-/* ===== VOICE INPUT ===== */
 
 function voiceInput(){
 
 db.settings.voice=true;
 save();
 
-let SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 
 if(!SR){
-alert("Voice Not Supported");
+alert("Voice not supported");
 return;
 }
 
-let r = new SR();
+let r=new SR();
 
 r.onresult=e=>{
 input.value=e.results[0][0].transcript;
@@ -304,56 +269,33 @@ send();
 };
 
 r.start();
-
 }
 
-/* ===== VECTOR MEMORY ===== */
-
-function vectorStore(q,a){
-db.vector.push({q,a});
-save();
-}
-
-function vectorSearch(text){
-
-for(let v of db.vector){
-if(text.includes(v.q)) return v.a;
-}
-
-return null;
-}
-
-/* ===== AI CORE ===== */
+/* AI */
 
 async function think(text){
 
 text=text.toLowerCase();
 
 if(text.startsWith("train:")){
-
 let [q,a]=text.replace("train:","").split("|");
 
-db.memory[q.trim()] = a.trim();
-vectorStore(q.trim(),a.trim());
+db.memory[q.trim()]=a.trim();
 save();
 
 if(window.saveCloudMemory){
-saveCloudMemory();
+saveCloudMemory(db.memory);
 }
 
 return "Training Saved";
 }
 
-let vec=vectorSearch(text);
-if(vec) return vec;
-
 if(db.memory[text]) return db.memory[text];
 
 return "🤖 Awaiting Training or Cloud Brain";
-
 }
 
-/* ===== SEND ===== */
+/* SEND */
 
 async function send(){
 
@@ -370,10 +312,9 @@ add("ai",reply);
 
 input.value="";
 input.blur();
-
 }
 
-/* ===== SIDEBAR SWIPE ===== */
+/* SIDEBAR SWIPE */
 
 let startX=0;
 
@@ -386,25 +327,21 @@ document.body.addEventListener("touchend",e=>{
 let endX=e.changedTouches[0].clientX;
 let sidebar=document.getElementById("sidebar");
 
-if(startX<50 && endX>120){
-sidebar.classList.add("open");
-}
-
-if(startX>200 && endX<120){
-sidebar.classList.remove("open");
-}
+if(startX<50 && endX>120) sidebar.classList.add("open");
+if(startX>200 && endX<120) sidebar.classList.remove("open");
 
 });
 
-/* ===== START ===== */
+/* START */
 
 loadTabs();
 loadChat();
+
+if(db.tabs.default.length===0){
 add("ai","🚀 JARVIS CORE ONLINE");
+}
 
 </script>
-
-<!-- ===== CLOUD MODULE ===== -->
 
 <script type="module">
 
@@ -412,8 +349,8 @@ import { jarvisLogin, saveCloudMemory, getUserEmail } from "./cloudSync.js";
 
 window.jarvisLogin = async ()=>{
 await jarvisLogin();
-let email = await getUserEmail();
-document.getElementById("userEmail").innerText = email || "Logged In";
+let email=await getUserEmail();
+document.getElementById("userEmail").innerText=email || "Logged In";
 };
 
 window.saveCloudMemory = saveCloudMemory;

@@ -255,34 +255,64 @@ save();
 add("ai","Language Switched");
 }
 
-/* THINK */
-async function think(text){
+/* ===== MEMORY DATABASE ===== */
 
-if(text.startsWith("train:")){
-let parts=text.replace("train:","").split("|");
-if(parts.length<2) return "Format: train: q | a";
+let db = JSON.parse(localStorage.getItem("jarvisMemory")) || {
+    memory:{}
+};
 
-let q=parts[0].trim();
-let a=parts[1].trim();
-
-db.memory[q]=a;
-vectorStore(q,a);
-return "Training saved";
+function saveMemory(){
+    localStorage.setItem("jarvisMemory", JSON.stringify(db));
 }
 
-let v=vectorSearch(text);
-if(v) return v;
 
-if(db.memory[text]) return db.memory[text];
+/* ===== THINK FUNCTION ===== */
 
-let llm=await askLLM(text);
+async function think(text){
+
+text = text.trim();
+
+/* ===== TRAIN SYSTEM ===== */
+
+if(text.toLowerCase().startsWith("train")){
+
+    let parts = text.split("=");
+
+    if(parts.length === 2){
+
+        let q = parts[0].replace("train","").trim();
+        let a = parts[1].trim();
+
+        db.memory[q] = a;
+        saveMemory();
+
+        return "✅ Training saved permanently";
+    }
+
+    return "⚠️ Use format: train question = answer";
+}
+
+
+/* ===== MEMORY REPLY ===== */
+
+if(db.memory[text]){
+    return db.memory[text];
+}
+
+
+/* ===== EXISTING LLM CALL ===== */
+
+let llm = await askLLM(text);
 if(llm) return llm;
 
 return "🤖 Talk or train me";
 }
 
-/* SEND */
+
+/* ===== SEND ===== */
+
 async function send(){
+
 let msg=input.value.trim();
 if(!msg) return;
 
@@ -291,13 +321,19 @@ add("ai","Thinking...");
 
 let reply=await think(msg);
 
-chat.removeChild(chat.lastChild);
+/* SAFE remove thinking message */
+if(chat.lastChild){
+    chat.removeChild(chat.lastChild);
+}
+
 add("ai",reply);
 
 input.value="";
 }
 
-/* START */
+
+/* ===== START ===== */
+
 updateTabs();
 loadTab();
 add("ai","🚀 Jarvis 15 Autonomous Ready");
@@ -305,10 +341,15 @@ add("ai","🚀 Jarvis 15 Autonomous Ready");
 </script>
 
 <script>
+
+/* ===== SERVICE WORKER ===== */
+
 if ('serviceWorker' in navigator) {
  navigator.serviceWorker.register('sw.js');
 }
+
 </script>
 
 </body>
 </html>
+

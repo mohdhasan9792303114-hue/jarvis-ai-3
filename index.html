@@ -319,9 +319,19 @@ input.value="";
 }
 
 /* ================= START SYSTEM ================= */
+<script type="module">
+
+import { jarvisLogin, saveCloudMemory } from "./cloudSync.js";
+
+window.jarvisLogin = jarvisLogin;
+window.saveCloudMemory = saveCloudMemory;
+
 
 loadTabs();
 loadChat();
+add("ai","🚀 JARVIS CORE ONLINE");
+
+</script>
 add("ai","🚀 JARVIS CORE ONLINE");
 
 </script>

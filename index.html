@@ -11,8 +11,6 @@
 
 <style>
 
-/* ===== GLOBAL UI ===== */
-
 body{
 background:black;
 color:white;
@@ -37,6 +35,13 @@ background:#222;
 margin:5px;
 padding:8px;
 cursor:pointer;
+display:flex;
+justify-content:space-between;
+}
+
+.deleteBtn{
+color:red;
+cursor:pointer;
 }
 
 /* ===== MAIN PANEL ===== */
@@ -53,6 +58,11 @@ padding:12px;
 text-align:center;
 }
 
+#userEmail{
+font-size:12px;
+color:#ccc;
+}
+
 #chat{
 flex:1;
 overflow:auto;
@@ -61,10 +71,13 @@ padding:10px;
 
 textarea{
 width:100%;
-height:80px;
+min-height:50px;
+max-height:120px;
 background:#222;
 color:white;
 border:none;
+resize:none;
+overflow:auto;
 }
 
 button{
@@ -95,7 +108,10 @@ border:none;
 
 <div id="main">
 
-<header>🧠 JARVIS AI CORE</header>
+<header>
+🧠 JARVIS AI CORE
+<div id="userEmail">Not Logged In</div>
+</header>
 
 <div id="chat"></div>
 
@@ -110,7 +126,7 @@ border:none;
 
 <script>
 
-/* ================= DATABASE ================= */
+/* DATABASE */
 
 let db = JSON.parse(localStorage.getItem("jarvisDB")) || {
 
@@ -122,7 +138,7 @@ vector:[],
 
 settings:{
 language:"en",
-voice:true
+voice:false   // ✅ Voice default OFF
 }
 
 };
@@ -131,13 +147,14 @@ function save(){
 localStorage.setItem("jarvisDB", JSON.stringify(db));
 }
 
-/* ================= DOM ================= */
+/* DOM */
 
 let chat = document.getElementById("chat");
 let input = document.getElementById("input");
 let tabs = document.getElementById("tabs");
+let userEmail = document.getElementById("userEmail");
 
-/* ================= CHAT RENDER ================= */
+/* CHAT RENDER */
 
 function render(role,text){
 
@@ -150,7 +167,7 @@ chat.scrollTop = chat.scrollHeight;
 
 }
 
-/* ================= ADD MESSAGE ================= */
+/* ADD MESSAGE */
 
 function add(role,text){
 
@@ -159,13 +176,28 @@ render(role,text);
 db.tabs[db.activeTab].push({role,text});
 save();
 
+/* Voice only if enabled */
 if(role==="ai" && db.settings.voice){
 speak(text);
 }
 
 }
 
-/* ================= MULTI CHAT SYSTEM ================= */
+/* CHAT DELETE */
+
+function deleteChat(id){
+
+if(confirm("Delete Chat?")){
+delete db.tabs[id];
+db.activeTab = "default";
+save();
+loadTabs();
+loadChat();
+}
+
+}
+
+/* MULTI CHAT */
 
 function newChat(){
 
@@ -187,17 +219,21 @@ Object.keys(db.tabs).forEach(t=>{
 
 let d=document.createElement("div");
 d.className="tab";
-d.textContent=t;
 
-d.onclick=()=>{
-db.activeTab=t;
-loadChat();
-};
+d.innerHTML = `
+<span onclick="switchChat('${t}')">${t}</span>
+<span class="deleteBtn" onclick="deleteChat('${t}')">❌</span>
+`;
 
 tabs.appendChild(d);
 
 });
 
+}
+
+function switchChat(id){
+db.activeTab=id;
+loadChat();
 }
 
 function loadChat(){
@@ -210,21 +246,24 @@ render(m.role,m.text);
 
 }
 
-/* ================= VOICE OUTPUT ================= */
+/* VOICE OUTPUT */
 
 function speak(text){
 
 let speech = new SpeechSynthesisUtterance(text);
-speech.lang = db.settings.language==="hi" ? "hi-IN":"en-US";
+speech.lang = "en-US";
 
 speechSynthesis.cancel();
 speechSynthesis.speak(speech);
 
 }
 
-/* ================= VOICE INPUT ================= */
+/* VOICE INPUT */
 
 function voiceInput(){
+
+db.settings.voice = true;
+save();
 
 let SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -234,7 +273,6 @@ return;
 }
 
 let r = new SR();
-r.lang = db.settings.language==="hi" ? "hi-IN":"en-US";
 
 r.onresult=e=>{
 input.value = e.results[0][0].transcript;
@@ -245,7 +283,7 @@ r.start();
 
 }
 
-/* ================= VECTOR MEMORY ================= */
+/* VECTOR MEMORY */
 
 function vectorStore(q,a){
 db.vector.push({q,a});
@@ -261,13 +299,11 @@ if(text.includes(v.q)) return v.a;
 return null;
 }
 
-/* ================= AI CORE ================= */
+/* AI CORE */
 
 async function think(text){
 
 text = text.toLowerCase();
-
-/* TRAIN SYSTEM */
 
 if(text.startsWith("train:")){
 
@@ -278,31 +314,23 @@ vectorStore(q.trim(),a.trim());
 
 save();
 
-/* CLOUD SAVE */
 if(window.saveCloudMemory){
 saveCloudMemory(q.trim(),a.trim());
 }
 
 return "Training Saved";
-
 }
-
-/* VECTOR MEMORY */
 
 let vec = vectorSearch(text);
 if(vec) return vec;
 
-/* MEMORY */
-
 if(db.memory[text]) return db.memory[text];
-
-/* DEFAULT */
 
 return "🤖 Awaiting Training or Cloud Brain";
 
 }
 
-/* ================= SEND ================= */
+/* SEND */
 
 async function send(){
 
@@ -318,10 +346,11 @@ chat.removeChild(chat.lastChild);
 add("ai",reply);
 
 input.value="";
+input.blur();   // ✅ Chat bar close
 
 }
 
-/* ================= START SYSTEM ================= */
+/* START */
 
 loadTabs();
 loadChat();
@@ -329,20 +358,21 @@ add("ai","🚀 JARVIS CORE ONLINE");
 
 </script>
 
-<!-- ===== CLOUD MODULE ===== -->
-
 <script type="module">
 
-import { jarvisLogin, saveCloudMemory } from "./cloudSync.js";
+import { jarvisLogin, saveCloudMemory, getUserEmail } from "./cloudSync.js";
 
-window.jarvisLogin = jarvisLogin;
+window.jarvisLogin = async ()=>{
+await jarvisLogin();
+let email = await getUserEmail();
+userEmail.innerText = email || "Logged In";
+};
+
 window.saveCloudMemory = saveCloudMemory;
 
 </script>
 
 <script>
-
-/* SERVICE WORKER */
 
 if('serviceWorker' in navigator){
 navigator.serviceWorker.register("sw.js");
@@ -352,4 +382,3 @@ navigator.serviceWorker.register("sw.js");
 
 </body>
 </html>
-

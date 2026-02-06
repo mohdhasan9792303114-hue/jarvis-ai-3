@@ -2,23 +2,31 @@
   "name": "Jarvis Autonomous AI",
   "short_name": "Jarvis",
   "id": "/jarvis-ai-3/",
-  "start_url": "/jarvis-ai-3/",
+  "start_url": "/jarvis-ai-3/?source=pwa",
   "scope": "/jarvis-ai-3/",
   "display": "standalone",
+  "display_override": ["standalone","minimal-ui"],
+  "orientation": "portrait",
   "background_color": "#000000",
   "theme_color": "#003cff",
+  "lang": "en",
   "description": "Jarvis Self Learning AI with Voice Commands, Cloud Sync, Multi Chat Tabs and Autonomous Multi Brain System",
 
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+
+  "categories": ["productivity","ai","assistant"],
+  "prefer_related_applications": false
 }

@@ -1,91 +1,84 @@
 import { auth, provider, dbCloud } from "./firebase.js";
 
 import {
-  signInWithPopup,
-  signOut
+ signInWithPopup,
+ signOut
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 import {
-  ref,
-  set,
-  onValue
+ ref,
+ set,
+ onValue
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-let userID = null;
+let userID=null;
+let userEmail=null;
 
+/* LOGIN */
 
-/* ================= LOGIN ================= */
+export async function jarvisLogin(){
 
-export async function jarvisLogin() {
+let result = await signInWithPopup(auth,provider);
 
-  let result = await signInWithPopup(auth, provider);
+userID = result.user.uid;
+userEmail = result.user.email;
 
-  userID = result.user.uid;
-
-  console.log("Jarvis Cloud Login:", userID);
-
-  loadCloudMemory();
-
-  return result.user.email;   // ✅ Email return
-}
-
-
-/* ================= LOGOUT ================= */
-
-export async function jarvisLogout() {
-
-  await signOut(auth);
-  userID = null;
+syncAllCloud();
 
 }
 
+/* EMAIL */
 
-/* ================= GET USER EMAIL ================= */
+export function getUserEmail(){
+return userEmail;
+}
 
-export function getUserEmail() {
+/* FULL SYNC */
 
-  return auth.currentUser?.email || null;
+function syncAllCloud(){
+
+if(!userID) return;
+
+let refAll = ref(dbCloud,"jarvisUsers/"+userID);
+
+onValue(refAll,snapshot=>{
+
+let cloudData = snapshot.val();
+if(!cloudData) return;
+
+/* Merge chats */
+if(cloudData.tabs){
+db.tabs = {...db.tabs,...cloudData.tabs};
+}
+
+/* Merge memory */
+if(cloudData.memory){
+db.memory = {...db.memory,...cloudData.memory};
+}
+
+/* Merge vector */
+if(cloudData.vector){
+db.vector = cloudData.vector;
+}
+
+save();
+
+});
 
 }
 
+/* SAVE ALL */
 
-/* ================= SAVE MEMORY ================= */
+export function saveCloudMemory(q,a){
 
-export async function saveCloudMemory(q, a) {
+if(!userID) return;
 
-  if (!userID) return;
+set(ref(dbCloud,"jarvisUsers/"+userID),{
 
-  await set(
-    ref(dbCloud, "jarvisMemory/" + userID + "/" + q),
-    a
-  );
+tabs: db.tabs,
+memory: db.memory,
+vector: db.vector
 
-}
-
-
-/* ================= LOAD MEMORY ================= */
-
-function loadCloudMemory() {
-
-  if (!userID) return;
-
-  const memoryRef = ref(dbCloud, "jarvisMemory/" + userID);
-
-  onValue(memoryRef, (snapshot) => {
-
-    let cloudData = snapshot.val();
-    if (!cloudData) return;
-
-    /* Merge cloud memory */
-    window.db.memory = {
-      ...window.db.memory,
-      ...cloudData
-    };
-
-    window.save();
-
-    console.log("Cloud Memory Synced");
-
-  });
+});
 
 }

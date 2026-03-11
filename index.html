@@ -1,15 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>JARVIS AI CORE</title>
-
-<link rel="manifest" href="manifest.json">
-
-<style>
+<!DOCTYPE html><html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><title>JARVIS AI CORE</title><link rel="manifest" href="manifest.json"><style>
 
 body{
 background:#0f172a;
@@ -120,49 +111,41 @@ color:red;
 cursor:pointer;
 }
 
-</style>
-</head>
-
-<body>
-
-<!-- SIDEBAR -->
-
-<div id="sidebar">
-
-<span id="closeSidebar">❌</span>
+</style></head><body><!-- SIDEBAR --><div id="sidebar"><span id="closeSidebar">❌</span>
 
 <h3>Chats</h3>
-<div id="tabs"></div>
-
-<button onclick="newChat()">New Chat</button>
+<div id="tabs"></div><button onclick="newChat()">New Chat</button>
 <button onclick="jarvisLogin()">Cloud Login</button>
 
-</div>
-
-<header>
+</div><header>
 <span id="menuBtn">☰</span>
 <b>JARVIS AI</b>
 <div id="userEmail">Not Logged</div>
-</header>
-
-<div id="chat"></div>
-
-<div id="inputBar">
-<textarea id="input"></textarea>
+</header><div id="chat"></div><div id="inputBar">
+<textarea id="input" placeholder="Ask Jarvis..."></textarea>
 <button onclick="send()">Send</button>
 <button onclick="voiceInput()">🎤</button>
-</div>
-
-<script>
+</div><script>
 
 /* DATABASE */
 
-let db = JSON.parse(localStorage.getItem("jarvisDB")) || {
+let db;
+
+try{
+db = JSON.parse(localStorage.getItem("jarvisDB")) || {
 tabs:{default:[]},
 activeTab:"default",
 memory:{},
 vector:[]
 };
+}catch{
+db={
+tabs:{default:[]},
+activeTab:"default",
+memory:{},
+vector:[]
+};
+}
 
 function save(){
 localStorage.setItem("jarvisDB",JSON.stringify(db));
@@ -182,6 +165,16 @@ let closeSidebar=document.getElementById("closeSidebar");
 menuBtn.onclick=()=> sidebar.classList.add("open");
 closeSidebar.onclick=()=> sidebar.classList.remove("open");
 
+/* CLICK OUTSIDE CLOSE */
+
+document.addEventListener("click",(e)=>{
+
+if(!sidebar.contains(e.target) && !menuBtn.contains(e.target)){
+sidebar.classList.remove("open");
+}
+
+});
+
 /* RENDER */
 
 function render(role,text){
@@ -191,7 +184,11 @@ d.className=role;
 d.textContent=(role==="user"?"You: ":"Jarvis: ")+text;
 
 chat.appendChild(d);
-chat.scrollTop=chat.scrollHeight;
+
+chat.scrollTo({
+top:chat.scrollHeight,
+behavior:"smooth"
+});
 
 }
 
@@ -282,26 +279,54 @@ render(m.role,m.text);
 
 }
 
-/* SIMPLE AI */
+/* AI BRAIN */
 
 function think(text){
 
 text=text.toLowerCase();
 
-if(text==="hello") return "Hello Owner";
+/* greeting */
 
-if(db.memory[text]) return db.memory[text];
+if(text==="hello")
+return "Hello Hasan";
+
+/* saved memory */
+
+if(db.memory[text])
+return db.memory[text];
+
+/* learning */
+
+if(text.startsWith("learn ")){
+
+let parts=text.replace("learn ","").split("=");
+
+if(parts.length===2){
+
+let q=parts[0].trim();
+let a=parts[1].trim();
+
+db.memory[q]=a;
+save();
+
+return "Learned.";
+
+}
+
+}
 
 return "Awaiting Training";
 
 }
 
-/* SEND */
+/* SEND MESSAGE */
 
 function send(){
 
 let msg=input.value.trim();
-if(!msg) return;
+
+if(msg.length===0)
+return;
 
 add("user",msg);
 add("ai",think(msg));
@@ -310,10 +335,44 @@ input.value="";
 
 }
 
-/* VOICE PLACEHOLDER */
+/* ENTER KEY SEND */
+
+input.addEventListener("keydown",(e)=>{
+
+if(e.key==="Enter" && !e.shiftKey){
+e.preventDefault();
+send();
+}
+
+});
+
+/* VOICE INPUT */
 
 function voiceInput(){
-alert("Voice coming soon");
+
+const SpeechRecognition =
+window.SpeechRecognition ||
+window.webkitSpeechRecognition;
+
+if(!SpeechRecognition){
+alert("Voice recognition not supported");
+return;
+}
+
+let rec = new SpeechRecognition();
+
+rec.lang="en-US";
+
+rec.onresult = e => {
+
+input.value = e.results[0][0].transcript;
+
+send();
+
+};
+
+rec.start();
+
 }
 
 /* START */
@@ -321,18 +380,19 @@ alert("Voice coming soon");
 loadTabs();
 loadChat();
 
-if(!sessionStorage.getItem("jarvisStart")){
+/* START MESSAGE ONCE */
+
+if(!localStorage.getItem("jarvisStart")){
 add("ai","JARVIS CORE ONLINE");
-sessionStorage.setItem("jarvisStart","1");
+localStorage.setItem("jarvisStart","1");
 }
 
-</script>
-
-<!-- CLOUD -->
-
-<script type="module">
+</script><!-- CLOUD LOGIN --><script type="module">
 
 import { jarvisLogin } from "./cloudSync.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const auth = getAuth();
 
 window.jarvisLogin = async ()=>{
 
@@ -341,16 +401,473 @@ try{
 let user = await jarvisLogin();
 
 if(user){
+
 document.getElementById("userEmail").innerText=user.email;
+
+sidebar.classList.remove("open");
+
 }
 
-}catch{
+}catch(err){
+
+console.error(err);
 alert("Cloud Login Failed");
+
 }
 
 };
 
-</script>
+/* AUTO LOGIN */
 
-</body>
+onAuthStateChanged(auth,(user)=>{
+
+if(user){
+
+document.getElementById("userEmail").innerText=user.email;
+
+}else{
+
+document.getElementById("userEmail").innerText="Not Logged";
+
+}
+
+});
+
+</script></body>
+</html><!DOCTYPE html><html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><title>JARVIS AI CORE</title><link rel="manifest" href="manifest.json"><style>
+
+body{
+background:#0f172a;
+color:white;
+font-family:Arial;
+margin:0;
+overflow:hidden;
+}
+
+/* HEADER */
+
+header{
+background:#0ea5e9;
+padding:12px;
+display:flex;
+align-items:center;
+gap:12px;
+}
+
+#menuBtn{
+font-size:22px;
+cursor:pointer;
+}
+
+#userEmail{
+font-size:12px;
+margin-left:auto;
+}
+
+/* SIDEBAR */
+
+#sidebar{
+position:fixed;
+top:0;
+left:-260px;
+width:260px;
+height:100%;
+background:#020617;
+transition:.3s;
+padding:12px;
+z-index:999;
+overflow:auto;
+}
+
+#sidebar.open{
+left:0;
+}
+
+#closeSidebar{
+float:right;
+cursor:pointer;
+}
+
+/* CHAT */
+
+#chat{
+position:fixed;
+top:60px;
+bottom:70px;
+width:100%;
+overflow:auto;
+padding:10px;
+}
+
+.user{color:#34d399;}
+.ai{color:#38bdf8;}
+
+/* INPUT */
+
+#inputBar{
+position:fixed;
+bottom:0;
+width:100%;
+background:#020617;
+padding:8px;
+display:flex;
+gap:6px;
+}
+
+textarea{
+flex:1;
+height:50px;
+background:#1e293b;
+color:white;
+border:none;
+resize:none;
+}
+
+button{
+background:#0ea5e9;
+border:none;
+color:white;
+padding:10px;
+cursor:pointer;
+}
+
+.tab{
+background:#1e293b;
+margin:6px 0;
+padding:8px;
+display:flex;
+justify-content:space-between;
+cursor:pointer;
+}
+
+.deleteBtn{
+color:red;
+cursor:pointer;
+}
+
+</style></head><body><!-- SIDEBAR --><div id="sidebar"><span id="closeSidebar">❌</span>
+
+<h3>Chats</h3>
+<div id="tabs"></div><button onclick="newChat()">New Chat</button>
+<button onclick="jarvisLogin()">Cloud Login</button>
+
+</div><header>
+<span id="menuBtn">☰</span>
+<b>JARVIS AI</b>
+<div id="userEmail">Not Logged</div>
+</header><div id="chat"></div><div id="inputBar">
+<textarea id="input" placeholder="Ask Jarvis..."></textarea>
+<button onclick="send()">Send</button>
+<button onclick="voiceInput()">🎤</button>
+</div><script>
+
+/* DATABASE */
+
+let db;
+
+try{
+db = JSON.parse(localStorage.getItem("jarvisDB")) || {
+tabs:{default:[]},
+activeTab:"default",
+memory:{},
+vector:[]
+};
+}catch{
+db={
+tabs:{default:[]},
+activeTab:"default",
+memory:{},
+vector:[]
+};
+}
+
+function save(){
+localStorage.setItem("jarvisDB",JSON.stringify(db));
+}
+
+/* DOM */
+
+let chat=document.getElementById("chat");
+let input=document.getElementById("input");
+let tabs=document.getElementById("tabs");
+let sidebar=document.getElementById("sidebar");
+let menuBtn=document.getElementById("menuBtn");
+let closeSidebar=document.getElementById("closeSidebar");
+
+/* SIDEBAR CONTROL */
+
+menuBtn.onclick=()=> sidebar.classList.add("open");
+closeSidebar.onclick=()=> sidebar.classList.remove("open");
+
+/* CLICK OUTSIDE CLOSE */
+
+document.addEventListener("click",(e)=>{
+
+if(!sidebar.contains(e.target) && !menuBtn.contains(e.target)){
+sidebar.classList.remove("open");
+}
+
+});
+
+/* RENDER */
+
+function render(role,text){
+
+let d=document.createElement("div");
+d.className=role;
+d.textContent=(role==="user"?"You: ":"Jarvis: ")+text;
+
+chat.appendChild(d);
+
+chat.scrollTo({
+top:chat.scrollHeight,
+behavior:"smooth"
+});
+
+}
+
+/* ADD MESSAGE */
+
+function add(role,text){
+
+render(role,text);
+
+if(!db.tabs[db.activeTab])
+db.tabs[db.activeTab]=[];
+
+db.tabs[db.activeTab].push({role,text});
+save();
+
+}
+
+/* NEW CHAT */
+
+function newChat(){
+
+let id="chat"+Date.now();
+
+db.tabs[id]=[];
+db.activeTab=id;
+
+save();
+loadTabs();
+loadChat();
+
+}
+
+/* DELETE CHAT */
+
+function deleteChat(id){
+
+if(!db.tabs[id]) return;
+
+if(confirm("Delete Chat?")){
+delete db.tabs[id];
+db.activeTab="default";
+save();
+loadTabs();
+loadChat();
+}
+
+}
+
+/* LOAD TABS */
+
+function loadTabs(){
+
+tabs.innerHTML="";
+
+Object.keys(db.tabs).forEach(t=>{
+
+let div=document.createElement("div");
+div.className="tab";
+
+div.innerHTML=`
+<span onclick="switchChat('${t}')">${t}</span>
+<span class="deleteBtn" onclick="deleteChat('${t}')">❌</span>
+`;
+
+tabs.appendChild(div);
+
+});
+
+}
+
+/* SWITCH CHAT */
+
+function switchChat(id){
+db.activeTab=id;
+loadChat();
+sidebar.classList.remove("open");
+}
+
+/* LOAD CHAT */
+
+function loadChat(){
+
+chat.innerHTML="";
+
+(db.tabs[db.activeTab]||[]).forEach(m=>{
+render(m.role,m.text);
+});
+
+}
+
+/* AI BRAIN */
+
+function think(text){
+
+text=text.toLowerCase();
+
+/* greeting */
+
+if(text==="hello")
+return "Hello Hasan";
+
+/* saved memory */
+
+if(db.memory[text])
+return db.memory[text];
+
+/* learning */
+
+if(text.startsWith("learn ")){
+
+let parts=text.replace("learn ","").split("=");
+
+if(parts.length===2){
+
+let q=parts[0].trim();
+let a=parts[1].trim();
+
+db.memory[q]=a;
+save();
+
+return "Learned.";
+
+}
+
+}
+
+return "Awaiting Training";
+
+}
+
+/* SEND MESSAGE */
+
+function send(){
+
+let msg=input.value.trim();
+
+if(msg.length===0)
+return;
+
+add("user",msg);
+add("ai",think(msg));
+
+input.value="";
+
+}
+
+/* ENTER KEY SEND */
+
+input.addEventListener("keydown",(e)=>{
+
+if(e.key==="Enter" && !e.shiftKey){
+e.preventDefault();
+send();
+}
+
+});
+
+/* VOICE INPUT */
+
+function voiceInput(){
+
+const SpeechRecognition =
+window.SpeechRecognition ||
+window.webkitSpeechRecognition;
+
+if(!SpeechRecognition){
+alert("Voice recognition not supported");
+return;
+}
+
+let rec = new SpeechRecognition();
+
+rec.lang="en-US";
+
+rec.onresult = e => {
+
+input.value = e.results[0][0].transcript;
+
+send();
+
+};
+
+rec.start();
+
+}
+
+/* START */
+
+loadTabs();
+loadChat();
+
+/* START MESSAGE ONCE */
+
+if(!localStorage.getItem("jarvisStart")){
+add("ai","JARVIS CORE ONLINE");
+localStorage.setItem("jarvisStart","1");
+}
+
+</script><!-- CLOUD LOGIN --><script type="module">
+
+import { jarvisLogin } from "./cloudSync.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const auth = getAuth();
+
+window.jarvisLogin = async ()=>{
+
+try{
+
+let user = await jarvisLogin();
+
+if(user){
+
+document.getElementById("userEmail").innerText=user.email;
+
+sidebar.classList.remove("open");
+
+}
+
+}catch(err){
+
+console.error(err);
+alert("Cloud Login Failed");
+
+}
+
+};
+
+/* AUTO LOGIN */
+
+onAuthStateChanged(auth,(user)=>{
+
+if(user){
+
+document.getElementById("userEmail").innerText=user.email;
+
+}else{
+
+document.getElementById("userEmail").innerText="Not Logged";
+
+}
+
+});
+
+</script></body>
 </html>
